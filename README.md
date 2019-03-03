@@ -29,6 +29,7 @@ Quick start
 Data are available in `/api/infos/{name}` via a standard request.
 
 Available infos:
+- `/api/infos`: all available infos
 - `/api/infos/resources`: total resources
 - `/api/infos/files`: total files and file sizes
 

@@ -73,85 +73,37 @@ class ApiController extends AbstractRestfulController
 
     public function get($id)
     {
-        $infos = [
-            'resources',
-            'files',
-        ];
-        if (!in_array($id, $infos)) {
-            return $this->returnError(
-                $this->translate('Bad Request'), // @translate
-                Response::STATUS_CODE_400
-            );
-        }
-
-        $api = $this->api();
-
         $response = new \Omeka\Api\Response;
-        $data = [];
 
-        $siteId = $this->params()->fromQuery('site_id');
-        if (!$siteId || !is_numeric($siteId)) {
-            $siteSlug = $this->params()->fromQuery('site_slug');
-            if ($siteSlug) {
-                $site = $api->searchOne('sites', ['slug' => $siteSlug])->getContent();
-                $siteId = $site ? $site->id() : null;
-            }
-        }
-        if ($siteId) {
-            $data['site_id'] = $siteId;
-        }
-
-        // The media adapter doesn’t allow to get/count media of a site. See Module.
-        $dataMedia = $data;
-        if (isset($dataMedia['site_id'])) {
-            $dataMedia['items_site_id'] = $dataMedia['site_id'];
-            unset($dataMedia['site_id']);
-        }
-
-        // Public/private resources are automatically managed according to user.
         switch ($id) {
             case 'resources':
-                $total = [];
-                $total['items']['total'] = $api->search('items', $data)->getTotalResults();
-                $total['media']['total'] = $api->search('media', $dataMedia)->getTotalResults();
-                $total['item_sets']['total'] = $api->search('item_sets', $data)->getTotalResults();
-                $response->setContent($total);
-                $response->setTotalResults(array_sum($total));
+                $result = $this->getInfosResources();
                 break;
 
             case 'files':
-                // Get all medias with a file.
-                $dataMedia['has_original'] = 1;
-
-                $total = [];
-                $total['files']['total'] = $api->search('media', $dataMedia)->getTotalResults();
-
-                unset($dataMedia['has_original']);
-                $dataMedia['has_thumbnails'] = 1;
-                $total['files']['thumbnails'] = $api->search('media', $dataMedia)->getTotalResults();
-
-                $dataMedia['has_original'] = 1;
-                $total['files']['original_and_thumbnails'] = $api->search('media', $dataMedia)->getTotalResults();
-
-                // TODO Use the entity manager to sum the file sizes (with visibility, etc.): will be needed if media > 10000.
-                unset($dataMedia['has_thumbnails']);
-                $sizes = $api->search('media', $dataMedia, ['returnScalar' => 'size'])->getContent();
-                $total['files']['size'] = array_sum($sizes);
-
-                $response->setContent($total);
-                $response->setTotalResults(array_sum($total));
+                $result = $this->getInfosFiles();
                 break;
+
+            default:
+                return $this->returnError(
+                    $this->translate('Bad Request'), // @translate
+                    Response::STATUS_CODE_400
+                );
         }
+
+        $response->setContent($result);
 
         return new ApiJsonModel($response, $this->getViewOptions());
     }
 
     public function getList()
     {
-        return $this->returnError(
-            $this->translate('Method Not Allowed'), // @translate
-            Response::STATUS_CODE_405
-        );
+        $response = new \Omeka\Api\Response;
+        $list = [];
+        $list['resources'] = $this->getInfosResources();
+        $list += $this->getInfosFiles();
+        $response->setContent($list);
+        return new ApiJsonModel($response, $this->getViewOptions());
     }
 
     public function head($id = null)
@@ -382,6 +334,85 @@ class ApiController extends AbstractRestfulController
             $result['errors'] = $errors;
         }
         return new ApiJsonModel($result, $this->getViewOptions());
+    }
+
+    protected function getInfosResources()
+    {
+        $data = $this->prepareQuerySite();
+
+        $api = $this->api();
+
+        // The media adapter doesn’t allow to get/count media of a site. See Module.
+        $dataMedia = $data;
+        if (isset($dataMedia['site_id'])) {
+            $dataMedia['items_site_id'] = $dataMedia['site_id'];
+            unset($dataMedia['site_id']);
+        }
+
+        // Public/private resources are automatically managed according to user.
+        $total = [];
+        $total['items']['total'] = $api->search('items', $data)->getTotalResults();
+        $total['media']['total'] = $api->search('media', $dataMedia)->getTotalResults();
+        $total['item_sets']['total'] = $api->search('item_sets', $data)->getTotalResults();
+
+        return $total;
+    }
+
+    protected function getInfosFiles()
+    {
+        $data = $this->prepareQuerySite();
+
+        // The media adapter doesn’t allow to get/count media of a site. See Module.
+        if (isset($data['site_id'])) {
+            $data['items_site_id'] = $data['site_id'];
+            unset($data['site_id']);
+        }
+
+        // Public/private resources are automatically managed according to user.
+
+        // Get all medias with a file.
+        $data['has_original'] = 1;
+
+        $api = $this->api();
+
+        $total = [];
+        $total['files']['total'] = $api->search('media', $data)->getTotalResults();
+
+        unset($data['has_original']);
+        $data['has_thumbnails'] = 1;
+        $total['files']['thumbnails'] = $api->search('media', $data)->getTotalResults();
+
+        $data['has_original'] = 1;
+        $total['files']['original_and_thumbnails'] = $api->search('media', $data)->getTotalResults();
+
+        // TODO Use the entity manager to sum the file sizes (with visibility, etc.): will be needed if media > 10000.
+        unset($data['has_thumbnails']);
+        $sizes = $api->search('media', $data, ['returnScalar' => 'size'])->getContent();
+        $total['files']['size'] = array_sum($sizes);
+
+        return $total;
+    }
+
+    protected function prepareQuerySite()
+    {
+        $data = [];
+
+        $api = $this->api();
+
+        $siteId = $this->params()->fromQuery('site_id');
+        if (!$siteId || !is_numeric($siteId)) {
+            $siteSlug = $this->params()->fromQuery('site_slug');
+            if ($siteSlug) {
+                $site = $api->searchOne('sites', ['slug' => $siteSlug])->getContent();
+                $siteId = $site ? $site->id() : null;
+            }
+        }
+
+        if ($siteId) {
+            $data['site_id'] = $siteId;
+        }
+
+        return $data;
     }
 
     /**
