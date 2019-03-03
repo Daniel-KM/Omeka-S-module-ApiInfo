@@ -84,6 +84,13 @@ class ApiController extends AbstractRestfulController
                 $result = $this->getInfosFiles();
                 break;
 
+            case 'site_settings':
+                $result = $this->getSiteSettings();
+                if ($result) {
+                    break;
+                }
+                // No break.
+
             default:
                 return $this->returnError(
                     $this->translate('Bad Request'), // @translate
@@ -391,6 +398,41 @@ class ApiController extends AbstractRestfulController
         $total['files']['size'] = array_sum($sizes);
 
         return $total;
+    }
+
+    protected function getSiteSettings()
+    {
+        $data = $this->prepareQuerySite();
+        if (empty($data)) {
+            return;
+        }
+
+        $list = [
+            'attachment_link_type',
+            'item_media_embed',
+            'show_page_pagination',
+            'show_user_bar',
+            'disable_jsonld_embed',
+            'locale',
+            'browse_attached_items',
+            'pagination_per_page',
+            'browse_heading_property_term',
+            'browse_body_property_term',
+        ];
+
+        /** @var \Omeka\Mvc\Controller\Plugin\Settings $siteSettings */
+        $siteSettings = $this->siteSettings();
+        $siteSettings->setTargetId($data['site_id']);
+        $settings = $this->settings();
+
+        $result = [];
+        foreach ($list as $setting) {
+            $result[$setting] = $siteSettings->get($setting, $settings->get($setting));
+        }
+
+        // TODO Add an event for module settings (or improve core to get all site settings) or use entity manager?
+
+        return $result;
     }
 
     protected function prepareQuerySite()

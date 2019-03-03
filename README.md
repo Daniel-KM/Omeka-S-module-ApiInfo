@@ -29,9 +29,10 @@ Quick start
 Data are available in `/api/infos/{name}` via a standard request.
 
 Available infos:
-- `/api/infos`: all available infos
+- `/api/infos`: all available infos on resources and files
 - `/api/infos/resources`: total resources
 - `/api/infos/files`: total files and file sizes
+- `/api/infos/site_settings`: list of site settings (core)
 
 The response is for all sites by default. Add argument `site_id={##}` or `site_slug={slug}`
 to get data for a site. The response supports the api keys, so rights are checked.
@@ -49,6 +50,7 @@ TODO
 
 - Append the infos to the `/api/sites`?
 - Make the infos available directly by the internal api.
+- Add the site settings of the modules.
 
 
 Warning
