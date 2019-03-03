@@ -2,6 +2,7 @@
 
 namespace ApiInfo;
 
+use Doctrine\ORM\QueryBuilder;
 use Omeka\Module\AbstractModule;
 use Zend\EventManager\Event;
 use Zend\EventManager\SharedEventManagerInterface;
@@ -57,5 +58,77 @@ class Module extends AbstractModule
                 $adapter->createNamedParameter($qb, (int) (bool) $query['has_thumbnails'])
             ));
         }
+
+        // Used internally to get all media of a site, that should be in the
+        // site pool (managed at item level).
+        // Media adapter with "site_id" is something different, not related to
+        // the media of the site, so the module adds the special key "items_site_id".
+        if (isset($query['items_site_id']) && is_numeric($query['items_site_id'])) {
+            // Get the site items pool.
+            // @see ItemAdapter::buildQuery()
+            $siteAdapter = $adapter->getAdapter('sites');
+            try {
+                $site = $siteAdapter->findEntity($query['items_site_id']);
+                $params = $site->getItemPool();
+                if (!is_array($params)) {
+                    $params = [];
+                }
+                // Avoid potential infinite recursion
+                unset($params['items_site_id']);
+
+                // Limit the media with the items pool.
+                $this->limitMediaQuery($qb, $params);
+            } catch (\Omeka\Api\Exception\NotFoundException $e) {
+            }
+        }
+    }
+
+    /**
+     * Limit the results with a query (generally the site query).
+     *
+     * @see \Annotate\Api\Adapter\AnnotationAdapter::buildQuery()
+     * @see \Reference\Mvc\Controller\Plugin\Reference::limitQuery()
+     *
+     * @param QueryBuilder $qb
+     * @param array $query
+     */
+    protected function limitMediaQuery(QueryBuilder $qb, array $query = null)
+    {
+        if (empty($query)) {
+            return;
+        }
+
+        $services = $this->getServiceLocator();
+        $subAdapter = $services->get('Omeka\ApiAdapterManager')->get('items');
+        $subEntityClass = \Omeka\Entity\Item::class;
+
+        $subQb = $services->get('Omeka\EntityManager')
+            ->createQueryBuilder()
+            ->select($subEntityClass. '.id')
+            ->from($subEntityClass, $subEntityClass);
+        $subAdapter
+            ->buildQuery($subQb, $query);
+        $subQb
+            ->groupBy($subEntityClass . '.id');
+
+        // The subquery cannot manage the parameters, since there are
+        // two independant queries, but they use the same aliases. Since
+        // number of ids may be great, it will be possible to create a
+        // temporary table. Currently, a simple string replacement of
+        // aliases is used.
+        // TODO Fix Omeka core for aliases in sub queries.
+        $subDql = str_replace('omeka_', 'akemo_', $subQb->getDQL());
+        /** @var \Doctrine\ORM\Query\Parameter $parameter */
+        $subParams = $subQb->getParameters();
+        foreach ($subParams as $parameter) {
+            $qb->setParameter(
+                str_replace('omeka_', 'akemo_', $parameter->getName()),
+                $parameter->getValue(),
+                $parameter->getType()
+            );
+        }
+
+        $qb
+            ->andWhere($qb->expr()->in(\Omeka\Entity\Media::class . '.item', $subDql));
     }
 }

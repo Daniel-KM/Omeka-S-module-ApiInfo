@@ -90,15 +90,22 @@ class ApiController extends AbstractRestfulController
         $data = [];
 
         $siteId = $this->params()->fromQuery('site_id');
-        if (is_null($siteId)) {
+        if (!$siteId || !is_numeric($siteId)) {
             $siteSlug = $this->params()->fromQuery('site_slug');
-            if (!is_null($siteSlug)) {
+            if ($siteSlug) {
                 $site = $api->searchOne('sites', ['slug' => $siteSlug])->getContent();
-                $siteId = $site ? $site->id() : 0;
+                $siteId = $site ? $site->id() : null;
             }
         }
-        if (!is_null($siteId)) {
+        if ($siteId) {
             $data['site_id'] = $siteId;
+        }
+
+        // The media adapter doesn’t allow to get/count media of a site. See Module.
+        $dataMedia = $data;
+        if (isset($dataMedia['site_id'])) {
+            $dataMedia['items_site_id'] = $dataMedia['site_id'];
+            unset($dataMedia['site_id']);
         }
 
         // Public/private resources are automatically managed according to user.
@@ -106,7 +113,7 @@ class ApiController extends AbstractRestfulController
             case 'resources':
                 $total = [];
                 $total['items']['total'] = $api->search('items', $data)->getTotalResults();
-                $total['media']['total'] = $api->search('media', $data)->getTotalResults();
+                $total['media']['total'] = $api->search('media', $dataMedia)->getTotalResults();
                 $total['item_sets']['total'] = $api->search('item_sets', $data)->getTotalResults();
                 $response->setContent($total);
                 $response->setTotalResults(array_sum($total));
@@ -114,17 +121,22 @@ class ApiController extends AbstractRestfulController
 
             case 'files':
                 // Get all medias with a file.
-                $data['has_original'] = 1;
+                $dataMedia['has_original'] = 1;
 
                 $total = [];
-                $total['files']['total'] = $api->search('media', $data)->getTotalResults();
+                $total['files']['total'] = $api->search('media', $dataMedia)->getTotalResults();
 
-                unset($data['has_original']);
-                $data['has_thumbnails'] = 1;
-                $total['files']['thumbnails'] = $api->search('media', $data)->getTotalResults();
+                unset($dataMedia['has_original']);
+                $dataMedia['has_thumbnails'] = 1;
+                $total['files']['thumbnails'] = $api->search('media', $dataMedia)->getTotalResults();
 
-                $data['has_original'] = 1;
-                $total['files']['original_and_thumbnails'] = $api->search('media', $data)->getTotalResults();
+                $dataMedia['has_original'] = 1;
+                $total['files']['original_and_thumbnails'] = $api->search('media', $dataMedia)->getTotalResults();
+
+                // TODO Use the entity manager to sum the file sizes (with visibility, etc.): will be needed if media > 10000.
+                unset($dataMedia['has_thumbnails']);
+                $sizes = $api->search('media', $dataMedia, ['returnScalar' => 'size'])->getContent();
+                $total['files']['size'] = array_sum($sizes);
 
                 $response->setContent($total);
                 $response->setTotalResults(array_sum($total));
