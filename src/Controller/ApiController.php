@@ -96,6 +96,10 @@ class ApiController extends AbstractRestfulController
                 $result = $this->getInfosResources();
                 break;
 
+            case 'sites':
+                $result = $this->getInfosSites();
+                break;
+
             case 'files':
                 $result = $this->getInfosFiles();
                 break;
@@ -123,6 +127,7 @@ class ApiController extends AbstractRestfulController
     {
         $response = new \Omeka\Api\Response;
         $list = $this->getInfosResources();
+        $list['sites'] = $this->getInfosSites();
         $list['files'] = $this->getInfosFiles();
         $response->setContent($list);
         return new ApiJsonModel($response, $this->getViewOptions());
@@ -383,6 +388,24 @@ class ApiController extends AbstractRestfulController
         } else {
             $data['total'] = $api->search($resource, $query)->getTotalResults();
         }
+
+        return $data;
+    }
+
+    protected function getInfosSites()
+    {
+        $query = $this->prepareQuerySite();
+
+        $querySite = isset($query['site_id'])
+            ? ['id' => $query['site_id']]
+            : [];
+
+        $api = $this->api();
+
+        $data = [];
+        $data['total'] = $api->search('sites', $querySite)->getTotalResults();
+
+        $data['pages'] = $api->search('site_pages', $query)->getTotalResults();
 
         return $data;
     }
