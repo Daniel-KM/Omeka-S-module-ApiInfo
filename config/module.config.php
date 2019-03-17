@@ -12,6 +12,11 @@ return [
             Controller\ApiController::class => Service\Controller\ApiControllerFactory::class,
         ],
     ],
+    'controller_plugins' => [
+        'factories' => [
+            'siteSettingsList' => Service\ControllerPlugin\SiteSettingsListFactory::class,
+        ],
+    ],
     'router' => [
         'routes' => [
             'api' => [
