@@ -30,12 +30,20 @@ Data are available in `/api/infos/{name}` via a standard request.
 
 Available infos:
 - `/api/infos`: all available infos on resources and files
+- `/api/infos/{api_id}`: total of any registered resource
+- `/api/infos/items`: total items
+- `/api/infos/media`: total media
+- `/api/infos/item_sets`: total item sets
 - `/api/infos/resources`: total resources
+- `/api/infos/sites`: total sites and pages
 - `/api/infos/files`: total files and file sizes
-- `/api/infos/site_settings`: list of site settings (core)
+- `/api/infos/site_data`: list of sites with full data (experimental)
+- `/api/infos/site_settings`: list of site settings (experimental)
 
 The response is for all sites by default. Add argument `site_id={##}` or `site_slug={slug}`
 to get data for a site. The response supports the api keys, so rights are checked.
+
+Specific data can be added via a listener on `api.infos.resources`.
 
 **Note**: the infos are available only through the api controller. To get them
 via `api()`, use à standard api search and use `getTotalResults()` on the
@@ -48,9 +56,7 @@ files, use a standard media query with `has_original=1`, `has_thumbnails=1` and
 TODO
 ----
 
-- Append the infos to the `/api/sites`?
 - Make the infos available directly by the internal api.
-- Add the site settings of the modules.
 
 
 Warning
