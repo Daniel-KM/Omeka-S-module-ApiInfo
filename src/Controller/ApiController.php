@@ -345,24 +345,33 @@ class ApiController extends AbstractRestfulController
 
     protected function getInfosResources()
     {
-        $data = $this->prepareQuerySite();
+        $query = $this->prepareQuerySite();
 
         $api = $this->api();
 
         // The media adapter doesn’t allow to get/count media of a site. See Module.
-        $dataMedia = $data;
-        if (isset($dataMedia['site_id'])) {
-            $dataMedia['items_site_id'] = $dataMedia['site_id'];
-            unset($dataMedia['site_id']);
+        $queryMedia = $query;
+        if (isset($queryMedia['site_id'])) {
+            $queryMedia['items_site_id'] = $queryMedia['site_id'];
+            unset($queryMedia['site_id']);
         }
 
         // Public/private resources are automatically managed according to user.
-        $total = [];
-        $total['items']['total'] = $api->search('items', $data)->getTotalResults();
-        $total['media']['total'] = $api->search('media', $dataMedia)->getTotalResults();
-        $total['item_sets']['total'] = $api->search('item_sets', $data)->getTotalResults();
+        $data = [];
+        $data['items']['total'] = $api->search('items', $query)->getTotalResults();
+        $data['media']['total'] = $api->search('media', $queryMedia)->getTotalResults();
+        $data['item_sets']['total'] = $api->search('item_sets', $query)->getTotalResults();
 
-        return $total;
+        // Allow handlers to filter the data.
+        $events = $this->getEventManager();
+        $args = $events->prepareArgs([
+            'query' => $query,
+            'data' => $data,
+        ]);
+        $events->trigger('api.infos.resources', $this, $args);
+        $data = $args['data'];
+
+        return $data;
     }
 
     protected function getInfosFiles()
