@@ -2,6 +2,7 @@
 namespace ApiInfo\Controller;
 
 use Doctrine\ORM\EntityManager;
+use Omeka\Api\Representation\SiteRepresentation;
 use Omeka\Mvc\Exception;
 use Omeka\View\Model\ApiJsonModel;
 use Zend\Authentication\AuthenticationService;
@@ -104,6 +105,11 @@ class ApiController extends AbstractRestfulController
                 $result = $this->getInfosFiles();
                 break;
 
+            case 'site_data':
+                $result = $this->getSiteData();
+                break;
+
+            // TODO Remove /api/info/site_settings?
             case 'site_settings':
                 $result = $this->getSiteSettings();
                 break;
@@ -459,6 +465,32 @@ class ApiController extends AbstractRestfulController
         return $data;
     }
 
+    protected function getSiteData()
+    {
+        $query = $this->prepareQuerySite();
+        $isSingle = !empty($query['site_id']);
+        if ($isSingle) {
+            $query = ['id' => $query['site_id']];
+            unset($query['site_id']);
+        }
+
+        $result = [];
+        /** @var \Omeka\Api\Representation\SiteRepresentation[] $sites */
+        $sites = $this->api()->search('sites', $query)->getContent();
+        foreach ($sites as $site) {
+            $data = json_decode(json_encode($site), true);
+            $data['o:setting'] = $this->siteSettingsList($site->id());
+            $data['o:page'] = $this->sitePages($site);
+            $result[] = $data;
+        }
+
+        if ($isSingle) {
+            $result = reset($result);
+        }
+
+        return $result;
+    }
+
     protected function getSiteSettings()
     {
         $query = $this->prepareQuerySite();
@@ -476,6 +508,30 @@ class ApiController extends AbstractRestfulController
             $data['o:setting'] = $this->siteSettingsList($siteId);
             $result[] = $data;
         }
+        return $result;
+    }
+
+    protected function sitePages(SiteRepresentation $site)
+    {
+        $result = [];
+
+        $api = $this->api();
+        foreach ($site->pages() as $page) {
+            $data = json_decode(json_encode($page), true);
+            foreach ($data['o:block'] as $key => $block) {
+                switch ($block['o:layout']) {
+                    case 'collecting':
+                        foreach ($block['o:data']['forms'] as $k => $formId) {
+                            $data['o:block'][$key]['o:data']['forms'][$k] = $api
+                                ->searchOne('collecting_forms', ['id' => $formId])
+                                ->getContent();
+                        }
+                        break;
+                }
+            }
+            $result[] = $data;
+        }
+
         return $result;
     }
 
