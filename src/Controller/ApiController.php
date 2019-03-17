@@ -33,6 +33,13 @@ class ApiController extends AbstractRestfulController
     protected $viewOptions = [];
 
     /**
+     * Cache for the query site.
+     *
+     * @var array
+     */
+    protected $querySite;
+
+    /**
      * @param AuthenticationService $authenticationService
      * @param EntityManager $entityManager
      * @param array $config
@@ -75,7 +82,16 @@ class ApiController extends AbstractRestfulController
     {
         $response = new \Omeka\Api\Response;
 
+        // Reset static data.
+        $this->querySite = null;
+
         switch ($id) {
+            case 'items':
+            case 'media':
+            case 'item_sets':
+                $result = $this->getInfosResources($id);
+                break;
+
             case 'resources':
                 $result = $this->getInfosResources();
                 break;
@@ -92,10 +108,10 @@ class ApiController extends AbstractRestfulController
                 // No break.
 
             default:
-                return $this->returnError(
-                    $this->translate('Bad Request'), // @translate
-                    Response::STATUS_CODE_400
-                );
+                $result = $this->getInfosOthers($id);
+                // When empty, an empty result is returned instead of a bad
+                // request in order to manage modules resources.
+                break;
         }
 
         $response->setContent($result);
@@ -106,9 +122,8 @@ class ApiController extends AbstractRestfulController
     public function getList()
     {
         $response = new \Omeka\Api\Response;
-        $list = [];
-        $list['resources'] = $this->getInfosResources();
-        $list += $this->getInfosFiles();
+        $list = $this->getInfosResources();
+        $list['files'] = $this->getInfosFiles();
         $response->setContent($list);
         return new ApiJsonModel($response, $this->getViewOptions());
     }
@@ -343,7 +358,7 @@ class ApiController extends AbstractRestfulController
         return new ApiJsonModel($result, $this->getViewOptions());
     }
 
-    protected function getInfosResources()
+    protected function getInfosResources($resource = null)
     {
         $query = $this->prepareQuerySite();
 
@@ -358,68 +373,87 @@ class ApiController extends AbstractRestfulController
 
         // Public/private resources are automatically managed according to user.
         $data = [];
-        $data['items']['total'] = $api->search('items', $query)->getTotalResults();
-        $data['media']['total'] = $api->search('media', $queryMedia)->getTotalResults();
-        $data['item_sets']['total'] = $api->search('item_sets', $query)->getTotalResults();
-
-        // Allow handlers to filter the data.
-        $events = $this->getEventManager();
-        $args = $events->prepareArgs([
-            'query' => $query,
-            'data' => $data,
-        ]);
-        $events->trigger('api.infos.resources', $this, $args);
-        $data = $args['data'];
+        if (empty($resource) || $resource === 'resources') {
+            $data['items']['total'] = $api->search('items', $query)->getTotalResults();
+            $data['media']['total'] = $api->search('media', $queryMedia)->getTotalResults();
+            $data['item_sets']['total'] = $api->search('item_sets', $query)->getTotalResults();
+            $data += $this->getInfosOthers();
+        } elseif ($resource === 'media') {
+            $data['total'] = $api->search('media', $queryMedia)->getTotalResults();
+        } else {
+            $data['total'] = $api->search($resource, $query)->getTotalResults();
+        }
 
         return $data;
     }
 
     protected function getInfosFiles()
     {
-        $data = $this->prepareQuerySite();
+        $query = $this->prepareQuerySite();
 
         // The media adapter doesn’t allow to get/count media of a site. See Module.
-        if (isset($data['site_id'])) {
-            $data['items_site_id'] = $data['site_id'];
-            unset($data['site_id']);
+        if (isset($query['site_id'])) {
+            $query['items_site_id'] = $query['site_id'];
+            unset($query['site_id']);
         }
 
         // Public/private resources are automatically managed according to user.
 
         // Get all medias with a file.
-        $data['has_original'] = 1;
+        $query['has_original'] = 1;
 
         $api = $this->api();
 
-        $total = [];
-        $total['files']['total'] = $api->search('media', $data)->getTotalResults();
+        $data = [];
+        $data['total'] = $api->search('media', $query)->getTotalResults();
 
-        unset($data['has_original']);
-        $data['has_thumbnails'] = 1;
-        $total['files']['thumbnails'] = $api->search('media', $data)->getTotalResults();
+        unset($query['has_original']);
+        $query['has_thumbnails'] = 1;
+        $data['thumbnails'] = $api->search('media', $query)->getTotalResults();
 
-        $data['has_original'] = 1;
-        $total['files']['original_and_thumbnails'] = $api->search('media', $data)->getTotalResults();
+        $query['has_original'] = 1;
+        $data['original_and_thumbnails'] = $api->search('media', $query)->getTotalResults();
 
         // TODO Use the entity manager to sum the file sizes (with visibility, etc.): will be needed if media > 10000.
-        unset($data['has_thumbnails']);
-        $sizes = $api->search('media', $data, ['returnScalar' => 'size'])->getContent();
-        $total['files']['size'] = array_sum($sizes);
+        unset($query['has_thumbnails']);
+        $sizes = $api->search('media', $query, ['returnScalar' => 'size'])->getContent();
+        $data['size'] = array_sum($sizes);
 
-        return $total;
+        return $data;
+    }
+
+    protected function getInfosOthers($id = null)
+    {
+        $query = $this->prepareQuerySite();
+
+        // Allow handlers to filter the data.
+        $data = [];
+        $events = $this->getEventManager();
+        $args = $events->prepareArgs([
+            'query' => $query,
+            'data' => $data,
+            'id' => $id,
+        ]);
+        $events->trigger('api.infos.resources', $this, $args);
+        $data = $args['data'];
+        return $data;
     }
 
     protected function getSiteSettings()
     {
-        $data = $this->prepareQuerySite();
-        return empty($data)
+        $query = $this->prepareQuerySite();
+        return empty($query)
             ? null
-            : $this->siteSettingsList($data['site_id']);
+            : $this->siteSettingsList($query['site_id']);
     }
 
     protected function prepareQuerySite()
     {
-        $data = [];
+        if (!is_null($this->querySite)) {
+            return $this->querySite;
+        }
+
+        $this->querySite = [];
 
         $api = $this->api();
 
@@ -433,10 +467,10 @@ class ApiController extends AbstractRestfulController
         }
 
         if ($siteId) {
-            $data['site_id'] = $siteId;
+            $this->querySite['site_id'] = $siteId;
         }
 
-        return $data;
+        return $this->querySite;
     }
 
     /**
