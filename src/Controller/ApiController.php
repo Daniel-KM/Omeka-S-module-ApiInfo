@@ -106,10 +106,7 @@ class ApiController extends AbstractRestfulController
 
             case 'site_settings':
                 $result = $this->getSiteSettings();
-                if ($result) {
-                    break;
-                }
-                // No break.
+                break;
 
             default:
                 $result = $this->getInfosOthers($id);
@@ -465,9 +462,21 @@ class ApiController extends AbstractRestfulController
     protected function getSiteSettings()
     {
         $query = $this->prepareQuerySite();
-        return empty($query)
-            ? null
-            : $this->siteSettingsList($query['site_id']);
+        if ($query) {
+            return $this->siteSettingsList($query['site_id']);
+        }
+
+        $result = [];
+        $sites = $this->api()->search('sites', [], ['responseContent' => 'resource'])->getContent();
+        foreach ($sites as $site) {
+            $siteId = $site->getId();
+            $data = [];
+            $data['o:id'] = $siteId;
+            $data['o:slug'] = $site->getSlug();
+            $data['o:setting'] = $this->siteSettingsList($siteId);
+            $result[] = $data;
+        }
+        return $result;
     }
 
     protected function prepareQuerySite()
