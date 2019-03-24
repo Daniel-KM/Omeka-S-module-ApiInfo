@@ -114,6 +114,10 @@ class ApiController extends AbstractRestfulController
                 $result = $this->getSiteSettings();
                 break;
 
+            case 'ids':
+                $result = $this->getIds();
+                break;
+
             default:
                 $result = $this->getInfosOthers($id);
                 // When empty, an empty result is returned instead of a bad
@@ -575,6 +579,43 @@ class ApiController extends AbstractRestfulController
         }
 
         return $this->querySite;
+    }
+
+    protected function getIds()
+    {
+        $result = [];
+
+        // Check if only some types are required.
+        $defaultTypes = [
+            'items',
+            'media',
+            'item_sets',
+            'vocabularies',
+            'properties',
+            'resource_classes',
+            'resource_templates',
+            'sites',
+            'site_pages',
+            // Modules.
+            'collecting_forms',
+        ];
+        $types = $this->params()->fromQuery('types', []);
+        $types = $types
+            ? array_intersect(explode(',', $types), $defaultTypes)
+            : $defaultTypes;
+
+        $query = $this->prepareQuerySite();
+        $api = $this->api();
+
+        foreach ($types as $type) {
+            try {
+                $result[$type] = $api->search($type, $query, ['returnScalar' => 'id'])->getContent();
+            } catch (\Exception $e) {
+                // Avoid to check the modules api keys.
+            }
+        }
+
+        return $result;
     }
 
     /**
