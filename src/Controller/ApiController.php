@@ -520,11 +520,27 @@ class ApiController extends AbstractRestfulController
             $data = json_decode(json_encode($page), true);
             foreach ($data['o:block'] as $key => $block) {
                 switch ($block['o:layout']) {
+                    // Display the collecting forms directly in the site pages.
                     case 'collecting':
                         foreach ($block['o:data']['forms'] as $k => $formId) {
-                            $data['o:block'][$key]['o:data']['forms'][$k] = $api
+                            /** @var \Collecting\Api\Representation\CollectingFormRepresentation $collectingForm */
+                            $collectingForm = $api
                                 ->searchOne('collecting_forms', ['id' => $formId])
                                 ->getContent();
+                            // The hidden csrf is added automatically to json.
+                            // $collectingForm = json_decode(json_encode($collectingForm), true);
+                            // $collectingForm['o-module-collecting:prompt'][] = [
+                            //     'o:id' => 'csrf',
+                            //     'o-module-collecting:type' => 'csrf',
+                            //     'o-module-collecting:text' => null,
+                            //     'o-module-collecting:input_type' => 'hidden',
+                            //     'o-module-collecting:select_options' => null,
+                            //     'o-module-collecting:resource_query' => (new \Zend\Form\Element\Csrf('csrf'))->getValue(),
+                            //     'o-module-collecting:media_type' => null,
+                            //     'o-module-collecting:required' => false,
+                            //     'o:property' => null,
+                            // ];
+                            $data['o:block'][$key]['o:data']['forms'][$k] = $collectingForm;
                         }
                         break;
                 }

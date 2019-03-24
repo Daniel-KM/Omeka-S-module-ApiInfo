@@ -33,10 +33,35 @@ class Module extends AbstractModule
     public function attachListeners(SharedEventManagerInterface $sharedEventManager)
     {
         $sharedEventManager->attach(
+            \Collecting\Api\Representation\CollectingFormRepresentation::class,
+            'rep.resource.json',
+            [$this, 'filterResourceJsonLdCollectingForm']
+        );
+
+        $sharedEventManager->attach(
             \Omeka\Api\Adapter\MediaAdapter::class,
             'api.search.query',
             [$this, 'apiSearchQueryMedia']
         );
+    }
+
+    public function filterResourceJsonLdCollectingForm(Event $event)
+    {
+        // To add the csrf as an additionnal prompt in the form allows to manage
+        // external offline app more easily.
+        $jsonLd = $event->getParam('jsonLd');
+        $jsonLd['o-module-collecting:prompt'][] = [
+            'o:id' => 'csrf',
+            'o-module-collecting:type' => 'csrf',
+            'o-module-collecting:text' => null,
+            'o-module-collecting:input_type' => 'hidden',
+            'o-module-collecting:select_options' => null,
+            'o-module-collecting:resource_query' => (new \Zend\Form\Element\Csrf('csrf'))->getValue(),
+            'o-module-collecting:media_type' => null,
+            'o-module-collecting:required' => false,
+            'o:property' => null,
+        ];
+        $event->setParam('jsonLd', $jsonLd);
     }
 
     public function apiSearchQueryMedia(Event $event)
