@@ -56,7 +56,7 @@ class Module extends AbstractModule
             'o-module-collecting:text' => null,
             'o-module-collecting:input_type' => 'hidden',
             'o-module-collecting:select_options' => null,
-            'o-module-collecting:resource_query' => (new \Zend\Form\Element\Csrf('csrf'))->getValue(),
+            'o-module-collecting:resource_query' => (new \Zend\Form\Element\Csrf('csrf_' . $jsonLd['o:id']))->getValue(),
             'o-module-collecting:media_type' => null,
             'o-module-collecting:required' => false,
             'o:property' => null,
