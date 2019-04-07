@@ -87,6 +87,9 @@ class ApiController extends AbstractRestfulController
         $this->querySite = null;
 
         switch ($id) {
+            case 'ping':
+                $result = 1;
+                break;
             case 'items':
             case 'media':
             case 'item_sets':
