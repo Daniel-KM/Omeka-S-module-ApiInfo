@@ -93,6 +93,7 @@ class ApiController extends AbstractRestfulController
             case 'items':
             case 'media':
             case 'item_sets':
+            case 'annotations' && $this->hasResource('annotations'):
                 $result = $this->getInfosResources($id);
                 break;
 
@@ -392,6 +393,10 @@ class ApiController extends AbstractRestfulController
             $data['items']['total'] = $api->search('items', $query)->getTotalResults();
             $data['media']['total'] = $api->search('media', $queryMedia)->getTotalResults();
             $data['item_sets']['total'] = $api->search('item_sets', $query)->getTotalResults();
+            // TODO Use a filter.
+            if ($this->hasResource('annotations')) {
+                $data['annotations']['total'] = $api->search('annotations', $query)->getTotalResults();
+            }
             $data += $this->getInfosOthers();
         } elseif ($resource === 'media') {
             $data['total'] = $api->search('media', $queryMedia)->getTotalResults();
@@ -600,6 +605,7 @@ class ApiController extends AbstractRestfulController
             'sites',
             'site_pages',
             // Modules.
+            'annotations',
             'collecting_forms',
         ];
         $types = $this->params()->fromQuery('types', []);
@@ -643,5 +649,13 @@ class ApiController extends AbstractRestfulController
     protected function getConfig()
     {
         return $this->config;
+    }
+
+    /**
+     * @return bool
+     */
+    protected function hasResource($resourceType)
+    {
+        return (bool) @$this->getConfig()['api_adapters']['invokables'][$resourceType];
     }
 }
