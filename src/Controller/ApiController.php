@@ -534,6 +534,10 @@ class ApiController extends AbstractRestfulController
                 switch ($block['o:layout']) {
                     // Display the collecting forms directly in the site pages.
                     case 'collecting':
+                        // Fix issue when there is no form.
+                        if (empty($block['o:data']['forms'])) {
+                            break;
+                        }
                         foreach ($block['o:data']['forms'] as $k => $formId) {
                             /** @var \Collecting\Api\Representation\CollectingFormRepresentation $collectingForm */
                             $collectingForm = $api
