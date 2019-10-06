@@ -43,6 +43,12 @@ class Module extends AbstractModule
             'api.search.query',
             [$this, 'apiSearchQueryMedia']
         );
+
+        $sharedEventManager->attach(
+            \Omeka\Api\Representation\ItemRepresentation::class,
+            'rep.resource.json',
+            [$this, 'filterJsonLd']
+        );
     }
 
     public function filterResourceJsonLdCollectingForm(Event $event)
@@ -61,6 +67,38 @@ class Module extends AbstractModule
             'o-module-collecting:required' => false,
             'o:property' => null,
         ];
+        $event->setParam('jsonLd', $jsonLd);
+    }
+
+    public function filterJsonLd(Event $event)
+    {
+        $append = $this->getServiceLocator()->get('Application')->getMvcEvent()->getRequest()
+            ->getQuery()->get('append');
+        if ($append !== 'urls') {
+            return;
+        }
+
+        /** @var \Omeka\Api\Representation\ItemRepresentation $item */
+        $item = $event->getTarget();
+        $jsonLd = $event->getParam('jsonLd');
+
+        $append = [];
+        if ($thumbnail = $item->thumbnail()) {
+            $append['o:thumbnail']['o:asset_url'] = $thumbnail->assetUrl();
+        }
+
+        /** @var \Omeka\Api\Representation\MediaRepresentation $media*/
+        foreach ($item->media() as $media) {
+            $urls = [];
+            if ($thumbnail = $media->thumbnail()) {
+                $urls['o:thumbnail']['o:asset_url'] = $thumbnail->assetUrl();
+            }
+            $urls['o:original_url'] = $media->originalUrl();
+            $urls['o:thumbnail_urls'] = $media->thumbnailUrls();
+            $append['o:media'][] = $urls;
+        }
+
+        $jsonLd['o-module-api-info:append'] = $append;
         $event->setParam('jsonLd', $jsonLd);
     }
 
