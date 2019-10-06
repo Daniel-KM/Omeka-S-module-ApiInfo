@@ -38,7 +38,7 @@ class ApiController extends AbstractRestfulController
      *
      * @var array
      */
-    protected $querySite;
+    protected $query;
 
     /**
      * @param AuthenticationService $authenticationService
@@ -83,8 +83,7 @@ class ApiController extends AbstractRestfulController
     {
         $response = new \Omeka\Api\Response;
 
-        // Reset static data.
-        $this->querySite = null;
+        $this->query = null;
 
         switch ($id) {
             case 'ping':
@@ -94,11 +93,13 @@ class ApiController extends AbstractRestfulController
             case 'media':
             case 'item_sets':
             case 'annotations' && $this->hasResource('annotations'):
-                $result = $this->getInfosResources($id);
+                $query = $this->cleanQuery(false);
+                $result = $this->getInfosResources($id, $query);
                 break;
 
             case 'resources':
-                $result = $this->getInfosResources();
+                $query = $this->cleanQuery(false);
+                $result = $this->getInfosResources(null, $query);
                 break;
 
             case 'sites':
@@ -137,7 +138,8 @@ class ApiController extends AbstractRestfulController
     public function getList()
     {
         $response = new \Omeka\Api\Response;
-        $list = $this->getInfosResources();
+        $query = $this->cleanQuery(false);
+        $list = $this->getInfosResources(null, $query);
         $list['sites'] = $this->getInfosSites();
         $list['files'] = $this->getInfosFiles();
         $response->setContent($list);
@@ -374,10 +376,8 @@ class ApiController extends AbstractRestfulController
         return new ApiJsonModel($result, $this->getViewOptions());
     }
 
-    protected function getInfosResources($resource = null)
+    protected function getInfosResources($resource = null, array $query = [])
     {
-        $query = $this->prepareQuerySite();
-
         $api = $this->api();
 
         // The media adapter doesn’t allow to get/count media of a site. See Module.
@@ -409,17 +409,15 @@ class ApiController extends AbstractRestfulController
 
     protected function getInfosSites()
     {
-        $query = $this->prepareQuerySite();
-
-        $querySite = isset($query['site_id'])
+        $query = $this->cleanQuery(false);
+        $query = isset($query['site_id'])
             ? ['id' => $query['site_id']]
             : [];
 
         $api = $this->api();
 
         $data = [];
-        $data['total'] = $api->search('sites', $querySite)->getTotalResults();
-
+        $data['total'] = $api->search('sites', $query)->getTotalResults();
         $data['pages'] = $api->search('site_pages', $query)->getTotalResults();
 
         return $data;
@@ -427,7 +425,7 @@ class ApiController extends AbstractRestfulController
 
     protected function getInfosFiles()
     {
-        $query = $this->prepareQuerySite();
+        $query = $this->cleanQuery(false);
 
         // The media adapter doesn’t allow to get/count media of a site. See Module.
         if (isset($query['site_id'])) {
@@ -462,7 +460,7 @@ class ApiController extends AbstractRestfulController
 
     protected function getInfosOthers($id = null)
     {
-        $query = $this->prepareQuerySite();
+        $query = $this->cleanQuery(false);
 
         // Allow handlers to filter the data.
         $data = [];
@@ -479,7 +477,7 @@ class ApiController extends AbstractRestfulController
 
     protected function getSiteData()
     {
-        $query = $this->prepareQuerySite();
+        $query = $this->cleanQuery(false);
         $isSingle = !empty($query['site_id']);
         if ($isSingle) {
             $query = ['id' => $query['site_id']];
@@ -505,7 +503,7 @@ class ApiController extends AbstractRestfulController
 
     protected function getSiteSettings()
     {
-        $query = $this->prepareQuerySite();
+        $query = $this->cleanQuery(false);
         if ($query) {
             return $this->siteSettingsList($query['site_id']);
         }
@@ -567,30 +565,41 @@ class ApiController extends AbstractRestfulController
         return $result;
     }
 
-    protected function prepareQuerySite()
+    /**
+     * Clean the query, in particular for the site id , either site id or site slug.
+     *
+     * @bool $keepPagination
+     * @return array
+     */
+    protected function cleanQuery($keepPagination = false)
     {
-        if (!is_null($this->querySite)) {
-            return $this->querySite;
+        if (!is_null($this->query)) {
+            if ($keepPagination) {
+                return $this->query;
+            }
+
+            $query = $this->query;
+            unset($query['page']);
+            unset($query['per_page']);
+            unset($query['offset']);
+            unset($query['limit']);
+            return $query;
         }
 
-        $this->querySite = [];
-
-        $api = $this->api();
-
-        $siteId = $this->params()->fromQuery('site_id');
-        if (!$siteId || !is_numeric($siteId)) {
-            $siteSlug = $this->params()->fromQuery('site_slug');
+        $query = $this->params()->fromQuery();
+        if (empty($query['site_id']) && !empty($query['site_slug'])) {
+            $siteSlug = $query['site_slug'];
             if ($siteSlug) {
+                $api = $this->api();
                 $site = $api->searchOne('sites', ['slug' => $siteSlug])->getContent();
-                $siteId = $site ? $site->id() : null;
+                if ($site) {
+                    $query['site_id'] = $site->id();
+                }
             }
         }
 
-        if ($siteId) {
-            $this->querySite['site_id'] = $siteId;
-        }
-
-        return $this->querySite;
+        $this->query = $query;
+        return $this->query;
     }
 
     protected function getIds()
@@ -617,7 +626,7 @@ class ApiController extends AbstractRestfulController
             ? array_intersect(explode(',', $types), $defaultTypes)
             : $defaultTypes;
 
-        $query = $this->prepareQuerySite();
+        $query = $this->cleanQuery(false);
         $api = $this->api();
 
         foreach ($types as $type) {
