@@ -108,16 +108,20 @@ class Module extends AbstractModule
         $qb = $event->getParam('queryBuilder');
         $query = $event->getParam('request')->getContent();
 
+        $expr = $qb->expr();
+        $this->isOldOmeka = strtok(\Omeka\Module::VERSION, '.') < 2;
+        $alias = $this->isOldOmeka ? $adapter->getEntityClass() : 'omeka_root';
+
         if (array_key_exists('has_original', $query)) {
-            $qb->andWhere($qb->expr()->eq(
-                $adapter->getEntityClass() . '.hasOriginal',
+            $qb->andWhere($expr->eq(
+                $alias . '.hasOriginal',
                 $adapter->createNamedParameter($qb, (int) (bool) $query['has_original'])
             ));
         }
 
         if (array_key_exists('has_thumbnails', $query)) {
-            $qb->andWhere($qb->expr()->eq(
-                $adapter->getEntityClass() . '.hasThumbnails',
+            $qb->andWhere($expr->eq(
+                $alias . '.hasThumbnails',
                 $adapter->createNamedParameter($qb, (int) (bool) $query['has_thumbnails'])
             ));
         }
@@ -165,14 +169,22 @@ class Module extends AbstractModule
         $subAdapter = $services->get('Omeka\ApiAdapterManager')->get('items');
         $subEntityClass = \Omeka\Entity\Item::class;
 
+        if ($this->isOldOmeka) {
+            $mainAlias = \Omeka\Entity\Media::class;
+            $subAlias = $subEntityClass;
+        } else {
+            $mainAlias = 'omeka_root';
+            $subAlias = 'akemo_root';
+        }
+
         $subQb = $services->get('Omeka\EntityManager')
             ->createQueryBuilder()
-            ->select($subEntityClass. '.id')
-            ->from($subEntityClass, $subEntityClass);
+            ->select($subAlias . '.id')
+            ->from($subEntityClass, $subAlias);
         $subAdapter
             ->buildQuery($subQb, $query);
         $subQb
-            ->groupBy($subEntityClass . '.id');
+            ->groupBy($subAlias . '.id');
 
         // The subquery cannot manage the parameters, since there are
         // two independant queries, but they use the same aliases. Since
@@ -192,6 +204,6 @@ class Module extends AbstractModule
         }
 
         $qb
-            ->andWhere($qb->expr()->in(\Omeka\Entity\Media::class . '.item', $subDql));
+            ->andWhere($qb->expr()->in($mainAlias . '.item', $subDql));
     }
 }
