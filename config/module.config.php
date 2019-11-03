@@ -14,6 +14,7 @@ return [
     ],
     'controller_plugins' => [
         'factories' => [
+            'settingsList' => Service\ControllerPlugin\SettingsListFactory::class,
             'siteSettingsList' => Service\ControllerPlugin\SiteSettingsListFactory::class,
         ],
     ],

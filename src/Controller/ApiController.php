@@ -114,7 +114,12 @@ class ApiController extends AbstractRestfulController
                 $result = $this->getSiteData();
                 break;
 
-            // TODO Remove /api/info/site_settings?
+            // TODO Remove /api/infos/settings?
+            case 'settings':
+                $result = $this->getMainSettings();
+                break;
+
+            // TODO Remove /api/infos/site_settings?
             case 'site_settings':
                 $result = $this->getSiteSettings();
                 break;
@@ -499,6 +504,11 @@ class ApiController extends AbstractRestfulController
         }
 
         return $result;
+    }
+
+    protected function getMainSettings()
+    {
+        return $this->settingsList();
     }
 
     protected function getSiteSettings()
