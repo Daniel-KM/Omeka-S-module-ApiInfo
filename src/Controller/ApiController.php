@@ -128,6 +128,10 @@ class ApiController extends AbstractRestfulController
                 $result = $this->getIds();
                 break;
 
+            case 'user':
+                $result = $this->getCurrentUserData();
+                break;
+
             default:
                 $result = $this->getInfosOthers($id);
                 // When empty, an empty result is returned instead of a bad
@@ -648,6 +652,19 @@ class ApiController extends AbstractRestfulController
         }
 
         return $result;
+    }
+
+    protected function getCurrentUserData()
+    {
+        /** @var \Omeka\Entity\User $user */
+        $user = $this->getAuthenticationService()->getIdentity();
+        if (!$user) {
+            // Return empty array instead of null to simplify check.
+            return [];
+        }
+
+        return $this->api()->read('users', ['id' => $user->getId()])->getContent()
+            ->jsonSerialize();
     }
 
     /**
