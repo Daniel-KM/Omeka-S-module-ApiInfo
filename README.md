@@ -38,7 +38,11 @@ Available infos:
 - `/api/infos/sites`: total sites and pages
 - `/api/infos/files`: total files and file sizes
 - `/api/infos/site_data`: list of sites with full data (experimental)
+- `/api/infos/settings`: list of main settings (experimental)
 - `/api/infos/site_settings`: list of site settings (experimental)
+- `/api/infos/ids?types[]=items`: list of all ids of specified types
+- `/api/infos/user`: metadata of the current user (experimental)
+- `/api/infos/translations?locale=fr`: all translations for the specified language (experimental)
 
 The response is for all sites by default. Add argument `site_id={##}` or `site_slug={slug}`
 to get data for a site. The response supports the api keys, so rights are checked.
