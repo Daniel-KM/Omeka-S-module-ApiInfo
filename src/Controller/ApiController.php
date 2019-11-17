@@ -132,6 +132,10 @@ class ApiController extends AbstractRestfulController
                 $result = $this->getCurrentUserData();
                 break;
 
+            case 'translations':
+                $result = $this->getTranslations();
+                break;
+
             default:
                 $result = $this->getInfosOthers($id);
                 // When empty, an empty result is returned instead of a bad
@@ -665,6 +669,22 @@ class ApiController extends AbstractRestfulController
 
         return $this->api()->read('users', ['id' => $user->getId()])->getContent()
             ->jsonSerialize();
+    }
+
+    protected function getTranslations()
+    {
+        $translate = $this->viewHelpers()->get('translate');
+        $translatorTextDomain = $translate->getTranslatorTextDomain();
+        /** @var \Zend\I18n\Translator\Translator $translator */
+        $translator = $translate->getTranslator()->getDelegatedTranslator();
+
+        // TODO How to get all the English strings?
+        // $locale = $translator->getLocale();
+        $locale = $this->params()->fromQuery('locale', 'en');
+        $translations = $translator->getAllMessages($translatorTextDomain, $locale);
+        return is_null($translations)
+            ? []
+            : $translations->getArrayCopy();
     }
 
     /**
