@@ -92,7 +92,7 @@ class ApiController extends AbstractRestfulController
             case 'items':
             case 'media':
             case 'item_sets':
-            case 'annotations' && $this->hasResource('annotations'):
+            case $id === 'annotations' && $this->hasResource('annotations'):
                 $query = $this->cleanQuery(false);
                 $result = $this->getInfosResources($id, $query);
                 break;
