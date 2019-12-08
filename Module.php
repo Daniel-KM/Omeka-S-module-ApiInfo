@@ -72,9 +72,11 @@ class Module extends AbstractModule
 
     public function filterJsonLd(Event $event)
     {
-        $append = $this->getServiceLocator()->get('Application')->getMvcEvent()->getRequest()
+        $services = $this->getServiceLocator();
+        $append = $services->get('Application')->getMvcEvent()->getRequest()
             ->getQuery()->get('append');
-        if ($append !== 'urls') {
+        $appends = array_intersect((array) $append, ['urls', 'sites']);
+        if (empty($appends)) {
             return;
         }
 
@@ -82,23 +84,43 @@ class Module extends AbstractModule
         $item = $event->getTarget();
         $jsonLd = $event->getParam('jsonLd');
 
-        $append = [];
-        if ($thumbnail = $item->thumbnail()) {
-            $append['o:thumbnail']['o:asset_url'] = $thumbnail->assetUrl();
-        }
+        $toAppend = [];
 
-        /** @var \Omeka\Api\Representation\MediaRepresentation $media*/
-        foreach ($item->media() as $media) {
-            $urls = [];
-            if ($thumbnail = $media->thumbnail()) {
-                $urls['o:thumbnail']['o:asset_url'] = $thumbnail->assetUrl();
+        foreach ($appends as $append) {
+            switch ($append) {
+                case 'urls':
+                    if ($thumbnail = $item->thumbnail()) {
+                        $toAppend['o:thumbnail']['o:asset_url'] = $thumbnail->assetUrl();
+                    }
+
+                    /** @var \Omeka\Api\Representation\MediaRepresentation $media*/
+                    foreach ($item->media() as $media) {
+                        $urls = [];
+                        if ($thumbnail = $media->thumbnail()) {
+                            $urls['o:thumbnail']['o:asset_url'] = $thumbnail->assetUrl();
+                        }
+                        $urls['o:original_url'] = $media->originalUrl();
+                        $urls['o:thumbnail_urls'] = $media->thumbnailUrls();
+                        $toAppend['o:media'][] = $urls;
+                    }
+                    break;
+                case 'sites':
+                    $api = $services->get('Omeka\ApiManager');
+                    $siteIds = $api->search('sites', [], ['returnScalar' => 'id'])->getContent();
+                    $siteIds = array_map('intval', $siteIds);
+                    foreach ($siteIds as $siteId) {
+                        $hasItem = $api->search('items', ['id' => $item->id(), 'site_id' => $siteId])->getTotalResults();
+                        if ($hasItem) {
+                            $toAppend['o:site'][] = $siteId;
+                        }
+                    }
+                    break;
+                default:
+                    break;
             }
-            $urls['o:original_url'] = $media->originalUrl();
-            $urls['o:thumbnail_urls'] = $media->thumbnailUrls();
-            $append['o:media'][] = $urls;
         }
 
-        $jsonLd['o-module-api-info:append'] = $append;
+        $jsonLd['o-module-api-info:append'] = $toAppend;
         $event->setParam('jsonLd', $jsonLd);
     }
 
