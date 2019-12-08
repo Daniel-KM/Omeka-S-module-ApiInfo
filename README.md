@@ -49,12 +49,19 @@ to get data for a site. The response supports the api keys, so rights are checke
 
 Specific data can be added via a listener on `api.infos.resources`.
 
-**Note**: the infos are available only through the api controller. To get them
-via `api()`, use à standard api search and use `getTotalResults()` on the
-response. For media inside a site, the search query should use `items_site_id`,
-since the argument `site_id` has another meaning currently inside the core. For
-files, use a standard media query with `has_original=1`, `has_thumbnails=1` and
-`items_site_id`.
+**Notes**
+- the infos are available only through the api controller. To get them via `api()`,
+  use à standard api search and use `getTotalResults()` on the response.
+- For media inside a site, the search query should use `items_site_id`, since
+  the argument `site_id` has another meaning currently inside the core.
+- For  files, use a standard media query with `has_original=1`, `has_thumbnails=1`
+  and `items_site_id`.
+
+Other available infos:
+- filter for media: `has_original=1`, `has_thumbnails=1`
+- list of files (urls) directly from the item data: append the arg `append=urls`.
+- list of sites (ids) directly from the item data: append the arg `append=sites`.
+- list of files and sites (ids) directly from the item data: append the arg `append[]=urls&append[]=sites`.
 
 
 TODO
