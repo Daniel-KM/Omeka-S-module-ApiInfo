@@ -694,11 +694,41 @@ class ApiController extends AbstractRestfulController
     protected function getReferences()
     {
         $query = $this->params()->fromQuery();
-        if (empty($query['text'])) {
+
+        $text = trim(@$query['text']);
+
+        // Field may be an array.
+        // Empty string field means meta results.
+        $field = $field = @$query['field'] ?: '';
+        $fields = is_array($field) ? $field : [$field];
+        $fields = array_unique($fields);
+
+        // Either "field" or "text" is required.
+        if (!strlen($text) && empty($fields)) {
             return [];
         }
 
         $metadataFieldsToTypes = [
+            // Recommended.
+            'o:item' => 'items',
+            'o:item_set' => 'item_sets',
+            'o:media' => 'media',
+            'o:resource_class' => 'resource_classes',
+            'o:resource_template' => 'resource_templates',
+
+            // Possible.
+            'items' => 'items',
+            'item_sets' => 'item_sets',
+            'media' => 'media',
+            'resource_classes' => 'resource_classes',
+            'resource_templates' => 'resource_templates',
+
+            'item' => 'items',
+            'item_set' => 'item_sets',
+            'resource_class' => 'resource_classes',
+            'resource_template' => 'resource_templates',
+
+            // Deprecated. For adapters of module Search.
             'is_public' => 'is_public',
             'is_public_field' => 'is_public',
             'item_id' => 'items',
@@ -722,7 +752,6 @@ class ApiController extends AbstractRestfulController
 
         $referenceQuery = @$query['query'];
         if (!$referenceQuery) {
-            $text = @$query['text'];
             $referenceQuery['property'][] = [
                 'joiner' => 'and',
                 'property' => '',
@@ -730,11 +759,6 @@ class ApiController extends AbstractRestfulController
                 'text' => $text,
             ];
         }
-
-        // Empty string field means meta results.
-        $field = @$query['field'] ?: '';
-        $fields = is_array($field) ? $field : [$field];
-        $fields = array_unique($fields);
 
         $resourceName = @$query['resource_name'] ?: 'items';
 
@@ -745,8 +769,19 @@ class ApiController extends AbstractRestfulController
 
         $api = $this->api();
 
+        if (array_intersect($fields, array_keys($metadataFieldsToCanonicals))) {
+            $labels = [
+                'o:item' => $this->translate('Items'), // @translate
+                'o:item_set' => $this->translate('Item sets'), // @translate
+                'o:media' => $this->translate('Media'), // @translate
+                'o:resource_class' => $this->translate('Classes'), // @translate
+                'o:resource_template' => $this->translate('Templates'), // @translate
+            ];
+        }
+
         $result = [];
         foreach ($fields as $field) {
+            // For metadata other than properties.
             if (isset($metadataFieldsToTypes[$field])) {
                 $type = $metadataFieldsToTypes[$field];
                 if ($type === 'is_public') {
@@ -755,14 +790,50 @@ class ApiController extends AbstractRestfulController
                 }
                 $values = $this->reference('', $type, $resourceName, [$sortBy => $sortOrder], $referenceQuery, $perPage, $page);
                 $term = $metadataFieldsToCanonicals[$type];
-                foreach (array_filter($values) as $value => $count) {
-                    $result[$term]['o-module-reference:values'][] = [
-                        'o:label' => $value,
-                        '@language' => null,
-                        'count' => $count,
-                    ];
+                $result[$term] = [
+                    'o:label' => @$labels[$term],
+                    'o-module-reference:values' => [],
+                ];
+                switch ($type) {
+                    case 'items':
+                    case 'item_sets':
+                    case 'media':
+                        foreach (array_filter($values) as $value => $count) {
+                            $label = $api->read($type, ['id' => $value])->getContent()->displayTitle();
+                            $result[$term]['o-module-reference:values'][] = [
+                                'o:id' => $value,
+                                'o:label' => $label,
+                                '@language' => null,
+                                'count' => $count,
+                            ];
+                        }
+                        break;
+                    case 'resource_classes':
+                        foreach (array_filter($values) as $value => $count) {
+                            $label = $api->searchOne($type, ['term' => $value])->getContent()->label();
+                            $result[$term]['o-module-reference:values'][] = [
+                                'o:term' => $value,
+                                'o:label' => $label,
+                                '@language' => null,
+                                'count' => $count,
+                            ];
+                        }
+                        break;
+                    case 'resource_templates':
+                        foreach (array_filter($values) as $value => $count) {
+                            $id = $api->searchOne($type, ['label' => $value])->getContent()->id();
+                            $result[$term]['o-module-reference:values'][] = [
+                                'o:id' => $id,
+                                'o:label' => $value,
+                                '@language' => null,
+                                'count' => $count,
+                            ];
+                        }
+                        break;
                 }
-            } else {
+            }
+            // For properties.
+            else {
                 $values = $this->reference($field, 'properties', $resourceName, [$sortBy => $sortOrder], $referenceQuery, $perPage, $page);
                 if (empty($field)) {
                     foreach (array_filter($values) as $value => $count) {

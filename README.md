@@ -50,8 +50,8 @@ Available infos:
   the specified text in the specified field (experimental), requires module [Reference]
   Other options are available: `sort_by` (`count` or `alphabetic`),
   `sort_order` (`asc` or `desc`), `per_page`, `page`, `resource_type`.
-  The field can be a property term, or `item_set_id`, `resource_class_id`,
-  and `resource_template_id` too.
+  The field can be a property term, or `o:item_set`, `o:resource_class`,
+  and `o:resource_template` too.
 
 The response is for all sites by default. Add argument `site_id={##}` or `site_slug={slug}`
 to get data for a site. The response supports the api keys, so rights are checked.
