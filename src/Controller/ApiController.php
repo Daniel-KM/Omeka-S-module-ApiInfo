@@ -709,45 +709,11 @@ class ApiController extends AbstractRestfulController
         }
 
         $metadataFieldsToTypes = [
-            // Recommended.
             'o:item' => 'items',
             'o:item_set' => 'item_sets',
             'o:media' => 'media',
             'o:resource_class' => 'resource_classes',
             'o:resource_template' => 'resource_templates',
-
-            // Possible.
-            'items' => 'items',
-            'item_sets' => 'item_sets',
-            'media' => 'media',
-            'resource_classes' => 'resource_classes',
-            'resource_templates' => 'resource_templates',
-
-            'item' => 'items',
-            'item_set' => 'item_sets',
-            'resource_class' => 'resource_classes',
-            'resource_template' => 'resource_templates',
-
-            // Deprecated. For adapters of module Search.
-            'is_public' => 'is_public',
-            'is_public_field' => 'is_public',
-            'item_id' => 'items',
-            'item_id_field' => 'items',
-            'item_set_id' => 'item_sets',
-            'item_set_id_field' => 'item_sets',
-            'media_id' => 'media',
-            'media_id_field' => 'media',
-            'resource_class_id' => 'resource_classes',
-            'resource_class_id_field' => 'resource_classes',
-            'resource_template_id' => 'resource_templates',
-            'resource_template_id_field' => 'resource_templates',
-        ];
-        $metadataFieldsToCanonicals = [
-            'items' => 'o:item',
-            'item_sets' => 'o:item_set',
-            'media' => 'o:media',
-            'resource_classes' => 'o:resource_class',
-            'resource_templates' => 'o:resource_template',
         ];
 
         $referenceQuery = @$query['query'];
@@ -769,7 +735,7 @@ class ApiController extends AbstractRestfulController
 
         $api = $this->api();
 
-        if (array_intersect($fields, array_keys($metadataFieldsToCanonicals))) {
+        if (array_intersect($fields, array_keys($metadataFieldsToTypes))) {
             $labels = [
                 'o:item' => $this->translate('Items'), // @translate
                 'o:item_set' => $this->translate('Item sets'), // @translate
@@ -784,14 +750,9 @@ class ApiController extends AbstractRestfulController
             // For metadata other than properties.
             if (isset($metadataFieldsToTypes[$field])) {
                 $type = $metadataFieldsToTypes[$field];
-                if ($type === 'is_public') {
-                    // TODO Count of "is_public" is currently unmanaged.
-                    continue;
-                }
                 $values = $this->reference('', $type, $resourceName, [$sortBy => $sortOrder], $referenceQuery, $perPage, $page);
-                $term = $metadataFieldsToCanonicals[$type];
-                $result[$term] = [
-                    'o:label' => @$labels[$term],
+                $result[$field] = [
+                    'o:label' => @$labels[$field],
                     'o-module-reference:values' => [],
                 ];
                 switch ($type) {
@@ -800,7 +761,7 @@ class ApiController extends AbstractRestfulController
                     case 'media':
                         foreach (array_filter($values) as $value => $count) {
                             $label = $api->read($type, ['id' => $value])->getContent()->displayTitle();
-                            $result[$term]['o-module-reference:values'][] = [
+                            $result[$field]['o-module-reference:values'][] = [
                                 'o:id' => $value,
                                 'o:label' => $label,
                                 '@language' => null,
@@ -811,7 +772,7 @@ class ApiController extends AbstractRestfulController
                     case 'resource_classes':
                         foreach (array_filter($values) as $value => $count) {
                             $label = $api->searchOne($type, ['term' => $value])->getContent()->label();
-                            $result[$term]['o-module-reference:values'][] = [
+                            $result[$field]['o-module-reference:values'][] = [
                                 'o:term' => $value,
                                 'o:label' => $label,
                                 '@language' => null,
@@ -822,7 +783,7 @@ class ApiController extends AbstractRestfulController
                     case 'resource_templates':
                         foreach (array_filter($values) as $value => $count) {
                             $id = $api->searchOne($type, ['label' => $value])->getContent()->id();
-                            $result[$term]['o-module-reference:values'][] = [
+                            $result[$field]['o-module-reference:values'][] = [
                                 'o:id' => $id,
                                 'o:label' => $value,
                                 '@language' => null,
