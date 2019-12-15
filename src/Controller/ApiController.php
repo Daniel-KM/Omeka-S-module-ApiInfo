@@ -2,6 +2,7 @@
 namespace ApiInfo\Controller;
 
 use Doctrine\ORM\EntityManager;
+use Omeka\Api\Exception\NotFoundException;
 use Omeka\Api\Representation\SiteRepresentation;
 use Omeka\Mvc\Exception;
 use Omeka\View\Model\ApiJsonModel;
@@ -501,9 +502,21 @@ class ApiController extends AbstractRestfulController
             unset($query['site_id']);
         }
 
+        $api = $this->api();
+
         $result = [];
+        if ($isSingle) {
+            try {
+                $site = $api->read('sites', ['id' => $query['id']])->getContent();
+            } catch (NotFoundException $e) {
+                return null;
+            }
+            $sites = [$site];
+        } else {
+            $sites = $api->search('sites', $query)->getContent();
+        }
+
         /** @var \Omeka\Api\Representation\SiteRepresentation[] $sites */
-        $sites = $this->api()->search('sites', $query)->getContent();
         foreach ($sites as $site) {
             $data = json_decode(json_encode($site), true);
             $data['o:setting'] = $this->siteSettingsList($site->id());
