@@ -136,6 +136,10 @@ class ApiController extends AbstractRestfulController
                 $result = $this->getTranslations();
                 break;
 
+            case $id === 'references' && $this->getPluginManager()->has('reference'):
+                $result = $this->getReferences();
+                break;
+
             default:
                 $result = $this->getInfosOthers($id);
                 // When empty, an empty result is returned instead of a bad
@@ -687,6 +691,55 @@ class ApiController extends AbstractRestfulController
             : $translations->getArrayCopy();
     }
 
+    protected function getReferences()
+    {
+        $query = $this->params()->fromQuery();
+        if (empty($query['text'])) {
+            return [];
+        }
+
+        $metadataFieldsToNames = [
+            'is_public' => 'is_public',
+            'is_public_field' => 'is_public',
+            'item_set_id' => 'item_sets',
+            'item_set_id_field' => 'item_sets',
+            'resource_class_id' => 'resource_classes',
+            'resource_class_id_field' => 'resource_classes',
+            'resource_template_id' => 'resource_templates',
+            'resource_template_id_field' => 'resource_templates',
+        ];
+
+        $text = @$query['text'];
+
+        $field = @$query['field'] ?: '';
+        $resourceName = @$query['resource_name'] ?: 'items';
+
+        $perPage = @$query['per_page'] ?: 10;
+        $page = @$query['page'] ?: 1;
+        $sortBy = strtolower(@$query['sort_by']) === 'alphabetic' ? 'alphabetic' : 'count';
+        $sortOrder = strtolower(@$query['sort_order']) === 'asc' ? 'ASC' : 'DESC';
+
+        $data = [];
+        $data['property'][] = [
+            'joiner' => 'and',
+            'property' => '',
+            'type' => 'in',
+            'text' => $text,
+        ];
+
+        if (isset($metadataFieldsToNames[$field])) {
+            $name = $metadataFieldsToNames[$field];
+            if ($name === 'is_public') {
+                return [];
+            }
+            $values = $this->reference('', $name, $resourceName, [$sortBy => $sortOrder], $data, $perPage, $page);
+        } else {
+            $values = $this->reference($field, 'properties', $resourceName, [$sortBy => $sortOrder], $data, $perPage, $page);
+        }
+
+        return array_filter($values);
+    }
+
     /**
      * @return \Zend\Authentication\AuthenticationService
      */
@@ -714,8 +767,8 @@ class ApiController extends AbstractRestfulController
     /**
      * @return bool
      */
-    protected function hasResource($resourceType)
+    protected function hasResource($resourceName)
     {
-        return (bool) @$this->getConfig()['api_adapters']['invokables'][$resourceType];
+        return (bool) @$this->getConfig()['api_adapters']['invokables'][$resourceName];
     }
 }

@@ -42,7 +42,16 @@ Available infos:
 - `/api/infos/site_settings`: list of site settings (experimental)
 - `/api/infos/ids?types[]=items`: list of all ids of specified types
 - `/api/infos/user`: metadata of the current user (experimental)
-- `/api/infos/translations?locale=fr`: all translations for the specified language (experimental)
+- `/api/infos/translations?locale=fr`: all translations for the specified
+  language (experimental)
+- `/api/infos/references?text=example`: all totals for the specified text for
+  each properties (experimental), requires module [Reference]
+- `/api/infos/references?text=example&field=dcterms:subject`: all references for
+  the specified text in the specified field (experimental), requires module [Reference]
+  Other options are available: `sort_by` (`count` or `alphabetic`),
+  `sort_order` (`asc` or `desc`), `per_page`, `page`, `resource_type`.
+  The field can be a property term, or `item_set_id`, `resource_class_id`,
+  and `resource_template_id` too.
 
 The response is for all sites by default. Add argument `site_id={##}` or `site_slug={slug}`
 to get data for a site. The response supports the api keys, so rights are checked.
@@ -117,6 +126,7 @@ Copyright
 [Api Info]: https://github.com/biblibre/Omeka-S-module-ApiInfo
 [Omeka S]: https://www.omeka.org/s
 [`ApiInfo.zip`]: https://github.com/biblibre/Omeka-S-module-ApiInfo/releases
+[Reference]: https://github.com/biblibre/Omeka-S-module-Reference
 [module issues]: https://github.com/biblibre/Omeka-S-module-ApiInfo/issues
 [CeCILL v2.1]: https://www.cecill.info/licences/Licence_CeCILL_V2.1-en.html
 [GNU/GPL]: https://www.gnu.org/licenses/gpl-3.0.html
