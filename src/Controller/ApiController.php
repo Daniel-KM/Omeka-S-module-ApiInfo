@@ -698,46 +698,114 @@ class ApiController extends AbstractRestfulController
             return [];
         }
 
-        $metadataFieldsToNames = [
+        $metadataFieldsToTypes = [
             'is_public' => 'is_public',
             'is_public_field' => 'is_public',
+            'item_id' => 'items',
+            'item_id_field' => 'items',
             'item_set_id' => 'item_sets',
             'item_set_id_field' => 'item_sets',
+            'media_id' => 'media',
+            'media_id_field' => 'media',
             'resource_class_id' => 'resource_classes',
             'resource_class_id_field' => 'resource_classes',
             'resource_template_id' => 'resource_templates',
             'resource_template_id_field' => 'resource_templates',
         ];
+        $metadataFieldsToCanonicals = [
+            'items' => 'o:item',
+            'item_sets' => 'o:item_set',
+            'media' => 'o:media',
+            'resource_classes' => 'o:resource_class',
+            'resource_templates' => 'o:resource_template',
+        ];
 
-        $text = @$query['text'];
+        $referenceQuery = @$query['query'];
+        if (!$referenceQuery) {
+            $text = @$query['text'];
+            $referenceQuery['property'][] = [
+                'joiner' => 'and',
+                'property' => '',
+                'type' => 'in',
+                'text' => $text,
+            ];
+        }
 
+        // Empty string field means meta results.
         $field = @$query['field'] ?: '';
+        $fields = is_array($field) ? $field : [$field];
+        $fields = array_unique($fields);
+
         $resourceName = @$query['resource_name'] ?: 'items';
 
-        $perPage = @$query['per_page'] ?: 10;
+        $perPage = @$query['per_page'] ?: 25;
         $page = @$query['page'] ?: 1;
         $sortBy = strtolower(@$query['sort_by']) === 'alphabetic' ? 'alphabetic' : 'count';
         $sortOrder = strtolower(@$query['sort_order']) === 'asc' ? 'ASC' : 'DESC';
 
-        $data = [];
-        $data['property'][] = [
-            'joiner' => 'and',
-            'property' => '',
-            'type' => 'in',
-            'text' => $text,
-        ];
+        $api = $this->api();
 
-        if (isset($metadataFieldsToNames[$field])) {
-            $name = $metadataFieldsToNames[$field];
-            if ($name === 'is_public') {
-                return [];
+        $result = [];
+        foreach ($fields as $field) {
+            if (isset($metadataFieldsToTypes[$field])) {
+                $type = $metadataFieldsToTypes[$field];
+                if ($type === 'is_public') {
+                    // TODO Count of "is_public" is currently unmanaged.
+                    continue;
+                }
+                $values = $this->reference('', $type, $resourceName, [$sortBy => $sortOrder], $referenceQuery, $perPage, $page);
+                $term = $metadataFieldsToCanonicals[$type];
+                foreach (array_filter($values) as $value => $count) {
+                    $result[$term]['o-module-reference:values'][] = [
+                        'o:label' => $value,
+                        '@language' => null,
+                        'count' => $count,
+                    ];
+                }
+            } else {
+                $values = $this->reference($field, 'properties', $resourceName, [$sortBy => $sortOrder], $referenceQuery, $perPage, $page);
+                if (empty($field)) {
+                    foreach (array_filter($values) as $value => $count) {
+                        $property = $api->searchOne('properties', ['term' => $value])->getContent();
+                        $result[$value] = [
+                            'o:id' => $property->id(),
+                            'o:term' => $value,
+                            'o:label' => $property->label(),
+                            'o-module-reference:values' => [],
+                        ];
+                        $result[$value]['o-module-reference:values'][] = [
+                            // TODO Get the label of the term.
+                            'o:label' => $value,
+                            '@language' => null,
+                            'count' => $count,
+                        ];
+                    }
+                } else {
+                    /** @var \Omeka\Api\Representation\PropertyRepresentation $property */
+                    $property = $api->searchOne('properties', ['term' => $field])->getContent();
+                    $result[$field] = [
+                        'o:id' => $property->id(),
+                        'o:term' => $field,
+                        'o:label' => $property->label(),
+                        'o-module-reference:values' => [],
+                    ];
+                    foreach (array_filter($values) as $value => $count) {
+                        $result[$field]['o-module-reference:values'][] = [
+                            'o:label' => $value,
+                            '@language' => null,
+                            'count' => $count,
+                        ];
+                    }
+                }
             }
-            $values = $this->reference('', $name, $resourceName, [$sortBy => $sortOrder], $data, $perPage, $page);
-        } else {
-            $values = $this->reference($field, 'properties', $resourceName, [$sortBy => $sortOrder], $data, $perPage, $page);
         }
 
-        return array_filter($values);
+        // Keep original order of fields.
+        if (!empty($query['field'])) {
+            $result = array_replace(array_fill_keys($fields, []), $result);
+        }
+
+        return $result;
     }
 
     /**
