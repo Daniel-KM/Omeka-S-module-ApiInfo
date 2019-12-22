@@ -904,12 +904,20 @@ class ApiController extends AbstractRestfulController
                 } else {
                     /** @var \Omeka\Api\Representation\PropertyRepresentation $property */
                     $property = $api->searchOne('properties', ['term' => $field])->getContent();
-                    $result[$field] = [
-                        'o:id' => $property->id(),
-                        'o:term' => $field,
-                        'o:label' => $property->label(),
-                        'o-module-reference:values' => [],
-                    ];
+                    // FIXME When field is unknown, Omeka returns dcterms:title. Should be fixed in core.
+                    if ($property->term() === $field) {
+                        $result[$field] = [
+                            'o:id' => $property->id(),
+                            'o:term' => $field,
+                            'o:label' => $property->label(),
+                            'o-module-reference:values' => [],
+                        ];
+                    } else {
+                        $result[$field] = [
+                            'o:label' => $this->translate('Properties'), // @translate
+                            'o-module-reference:values' => [],
+                        ];
+                    }
                     foreach (array_filter($values) as $value => $count) {
                         $result[$field]['o-module-reference:values'][] = [
                             'o:label' => $value,
