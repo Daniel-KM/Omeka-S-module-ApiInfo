@@ -153,7 +153,7 @@ class Module extends AbstractModule
         $query = $event->getParam('request')->getContent();
 
         $expr = $qb->expr();
-        $this->isOldOmeka = strtok(\Omeka\Module::VERSION, '.') < 2;
+        $this->isOldOmeka = \Omeka\Module::VERSION < 2;
         $alias = $this->isOldOmeka ? $adapter->getEntityClass() : 'omeka_root';
 
         if (array_key_exists('has_original', $query)) {
