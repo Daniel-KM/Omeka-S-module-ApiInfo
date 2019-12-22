@@ -34,6 +34,7 @@ Available infos:
 - `/api/infos/items`: total items
 - `/api/infos/media`: total media
 - `/api/infos/item_sets`: total item sets
+- `/api/infos/items?output=datatables`: formatted output for datatables
 - `/api/infos/resources`: total resources
 - `/api/infos/sites`: total sites and pages
 - `/api/infos/files`: total files and file sizes
@@ -55,6 +56,9 @@ Available infos:
 
 The response is for all sites by default. Add argument `site_id={##}` or `site_slug={slug}`
 to get data for a site. The response supports the api keys, so rights are checked.
+
+The response can can be formatted according to the argument `output`.
+[datatables] is a js library to display data as a paginated and searchable table.
 
 Specific data can be added via a listener on `api.infos.resources`.
 
@@ -127,6 +131,7 @@ Copyright
 [Omeka S]: https://www.omeka.org/s
 [`ApiInfo.zip`]: https://github.com/biblibre/Omeka-S-module-ApiInfo/releases
 [Reference]: https://github.com/biblibre/Omeka-S-module-Reference
+[datatables]: https://editor.datatables.net
 [module issues]: https://github.com/biblibre/Omeka-S-module-ApiInfo/issues
 [CeCILL v2.1]: https://www.cecill.info/licences/Licence_CeCILL_V2.1-en.html
 [GNU/GPL]: https://www.gnu.org/licenses/gpl-3.0.html

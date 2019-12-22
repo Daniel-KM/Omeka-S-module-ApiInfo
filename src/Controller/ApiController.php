@@ -95,11 +95,15 @@ class ApiController extends AbstractRestfulController
             case 'item_sets':
             case $id === 'annotations' && $this->hasResource('annotations'):
                 $query = $this->cleanQuery(true);
-                if (!empty($query['datatables'])) {
-                    $result = $this->getDatatables($id, $query);
-                } else {
-                    $query = $this->cleanQuery(false);
-                    $result = $this->getInfosResources($id, $query);
+                $output = isset($query['output']) ? $query['output'] : 'default';
+                switch ($output) {
+                    case 'datatables':
+                        $result = $this->getDatatables($id, $query);
+                        break;
+                    default:
+                        $query = $this->cleanQuery(false);
+                        $result = $this->getInfosResources($id, $query);
+                        break;
                 }
                 break;
 
