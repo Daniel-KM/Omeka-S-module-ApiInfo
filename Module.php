@@ -39,6 +39,12 @@ class Module extends AbstractModule
         );
 
         $sharedEventManager->attach(
+            \Omeka\Api\Representation\SitePageRepresentation::class,
+            'rep.resource.json',
+            [$this, 'filterResourceJsonSitePage']
+        );
+
+        $sharedEventManager->attach(
             \Omeka\Api\Adapter\MediaAdapter::class,
             'api.search.query',
             [$this, 'apiSearchQueryMedia']
@@ -67,6 +73,22 @@ class Module extends AbstractModule
             'o-module-collecting:required' => false,
             'o:property' => null,
         ];
+        $event->setParam('jsonLd', $jsonLd);
+    }
+
+    public function filterResourceJsonSitePage(Event $event)
+    {
+        // TODO Normalize this process to avoid to serve a csrf: it may not be needed for a contact form.
+        // To add the csrf in the contact us block allows to contact us by api.
+        /** @var \Omeka\Api\Representation\SitePageBlockRepresentation $block */
+        $jsonLd = $event->getParam('jsonLd');
+        foreach ($jsonLd['o:block'] as $key => $block) {
+            if ($block->layout() === 'contactUs') {
+                $jsonBlock = $block->jsonSerialize();
+                $jsonBlock['o:data']['csrf'] = (new \Zend\Form\Element\Csrf('csrf_' . $jsonLd['o:id']))->getValue();
+                $jsonLd['o:block'][$key] = $jsonBlock;
+            }
+        }
         $event->setParam('jsonLd', $jsonLd);
     }
 
