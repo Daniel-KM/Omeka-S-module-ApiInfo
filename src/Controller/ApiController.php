@@ -94,8 +94,13 @@ class ApiController extends AbstractRestfulController
             case 'media':
             case 'item_sets':
             case $id === 'annotations' && $this->hasResource('annotations'):
-                $query = $this->cleanQuery(false);
-                $result = $this->getInfosResources($id, $query);
+                $query = $this->cleanQuery(true);
+                if (!empty($query['datatables'])) {
+                    $result = $this->getDatatables($id, $query);
+                } else {
+                    $query = $this->cleanQuery(false);
+                    $result = $this->getInfosResources($id, $query);
+                }
                 break;
 
             case 'resources':
@@ -420,6 +425,73 @@ class ApiController extends AbstractRestfulController
             $data['total'] = $api->search('media', $queryMedia)->getTotalResults();
         } else {
             $data['total'] = $api->search($resource, $query)->getTotalResults();
+        }
+
+        return $data;
+    }
+
+    /**
+     * Provide the full results for datatables javascript library.
+     *
+     * @see https://datatables.net
+     *
+     * @param string $resource
+     * @param array $query
+     * @return array
+     */
+    protected function getDatatables($resource = null, array $query = [])
+    {
+        $isResource = empty($resource) || $resource === 'resources';
+
+        if ($isResource) {
+            return $this->returnError(
+                $this->translate('Multiple resources are not implemented currently.'), // @translate
+                Response::STATUS_CODE_501
+            );
+        }
+
+        // TODO Remove hardcoded per_page.
+        $paginationPerPage = $this->settings()->get('pagination_per_page');
+        if (empty($query['per_page'])) {
+            $query['per_page'] = $paginationPerPage;
+        } elseif ($query['per_page'] > 1000) {
+            return $this->returnError(
+                $this->translate('Payload too large.'), // @translate
+                Response::STATUS_CODE_413
+            );
+        }
+
+        // Required to avoid to return all results.
+        if (empty($query['page'])) {
+            $query['page'] = 1;
+        }
+
+        $api = $this->api();
+
+        // The media adapter doesn’t allow to get/count media of a site. See Module.
+        $queryMedia = $query;
+        if (isset($queryMedia['site_id'])) {
+            $queryMedia['items_site_id'] = $queryMedia['site_id'];
+            unset($queryMedia['site_id']);
+        }
+
+        // TODO Cache results for datatables (with "draw"), but it can be cached by datatables itself.
+
+        // Public/private resources are automatically managed according to user.
+
+        $datas = $this->getInfosResources($resource, $this->cleanQuery(false));
+        $data = [
+            'draw' => isset($query['draw']) ? $query['draw'] : 0,
+            'recordsTotal' => 0,
+            'recordsFiltered' => 0,
+            'data' => [],
+        ];
+        $data['recordsTotal'] = $datas['total'];
+        $data['recordsFiltered'] = $datas['total'];
+        if ($resource === 'media') {
+            $data['data'] = $api->search('media', $queryMedia)->getContent();
+        } else {
+            $data['data'] = $api->search($resource, $query)->getContent();
         }
 
         return $data;
