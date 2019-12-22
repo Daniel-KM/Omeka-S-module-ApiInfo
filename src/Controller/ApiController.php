@@ -572,9 +572,9 @@ class ApiController extends AbstractRestfulController
     protected function getSiteData()
     {
         $query = $this->cleanQuery(false);
-        $isSingle = !empty($query['site_id']);
+        $isSingle = !empty($query['id']) || !empty($query['site_id']);
         if ($isSingle) {
-            $query = ['id' => $query['site_id']];
+            $query = ['id' => empty($query['site_id']) ? $query['id'] : $query['site_id']];
             unset($query['site_id']);
         }
 
