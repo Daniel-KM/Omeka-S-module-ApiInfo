@@ -146,7 +146,7 @@ class ApiController extends AbstractRestfulController
                 $result = $this->getTranslations();
                 break;
 
-            case $id === 'references' && $this->getPluginManager()->has('reference'):
+            case $id === 'references' && $this->getPluginManager()->has('references'):
                 $result = $this->getReferences();
                 break;
 
@@ -784,157 +784,23 @@ class ApiController extends AbstractRestfulController
     {
         $query = $this->params()->fromQuery();
 
-        $text = trim(@$query['text']);
-
         // Field may be an array.
         // Empty string field means meta results.
-        $field = $field = @$query['field'] ?: '';
+        $field = @$query['field'] ?: [];
         $fields = is_array($field) ? $field : [$field];
         $fields = array_unique($fields);
 
         // Either "field" or "text" is required.
-        if (!strlen($text) && empty($fields)) {
+        if (empty($fields)) {
             return [];
         }
+        unset($query['field']);
 
-        $metadataFieldsToTypes = [
-            'o:item' => 'items',
-            'o:item_set' => 'item_sets',
-            'o:media' => 'media',
-            'o:resource_class' => 'resource_classes',
-            'o:resource_template' => 'resource_templates',
-        ];
+        $options = $query;
+        $query = @$options['query'] ?: [];
+        unset($options['query']);
 
-        $referenceQuery = @$query['query'];
-        if (!$referenceQuery) {
-            $referenceQuery['property'][] = [
-                'joiner' => 'and',
-                'property' => '',
-                'type' => 'in',
-                'text' => $text,
-            ];
-        }
-
-        $resourceName = @$query['resource_name'] ?: 'items';
-
-        $perPage = @$query['per_page'] ?: 25;
-        $page = @$query['page'] ?: 1;
-        $sortBy = strtolower(@$query['sort_by']) === 'alphabetic' ? 'alphabetic' : 'count';
-        $sortOrder = strtolower(@$query['sort_order']) === 'asc' ? 'ASC' : 'DESC';
-
-        $api = $this->api();
-
-        if (array_intersect($fields, array_keys($metadataFieldsToTypes))) {
-            $labels = [
-                'o:item' => $this->translate('Items'), // @translate
-                'o:item_set' => $this->translate('Item sets'), // @translate
-                'o:media' => $this->translate('Media'), // @translate
-                'o:resource_class' => $this->translate('Classes'), // @translate
-                'o:resource_template' => $this->translate('Templates'), // @translate
-            ];
-        }
-
-        $result = [];
-        foreach ($fields as $field) {
-            // For metadata other than properties.
-            if (isset($metadataFieldsToTypes[$field])) {
-                $type = $metadataFieldsToTypes[$field];
-                $values = $this->reference('', $type, $resourceName, [$sortBy => $sortOrder], $referenceQuery, $perPage, $page);
-                $result[$field] = [
-                    'o:label' => @$labels[$field],
-                    'o-module-reference:values' => [],
-                ];
-                switch ($type) {
-                    case 'items':
-                    case 'item_sets':
-                    case 'media':
-                        foreach (array_filter($values) as $value => $count) {
-                            $label = $api->read($type, ['id' => $value])->getContent()->displayTitle();
-                            $result[$field]['o-module-reference:values'][] = [
-                                'o:id' => $value,
-                                'o:label' => $label,
-                                '@language' => null,
-                                'count' => $count,
-                            ];
-                        }
-                        break;
-                    case 'resource_classes':
-                        foreach (array_filter($values) as $value => $count) {
-                            $label = $api->searchOne($type, ['term' => $value])->getContent()->label();
-                            $result[$field]['o-module-reference:values'][] = [
-                                'o:term' => $value,
-                                'o:label' => $label,
-                                '@language' => null,
-                                'count' => $count,
-                            ];
-                        }
-                        break;
-                    case 'resource_templates':
-                        foreach (array_filter($values) as $value => $count) {
-                            $id = $api->searchOne($type, ['label' => $value])->getContent()->id();
-                            $result[$field]['o-module-reference:values'][] = [
-                                'o:id' => $id,
-                                'o:label' => $value,
-                                '@language' => null,
-                                'count' => $count,
-                            ];
-                        }
-                        break;
-                }
-            }
-            // For properties.
-            else {
-                $values = $this->reference($field, 'properties', $resourceName, [$sortBy => $sortOrder], $referenceQuery, $perPage, $page);
-                if (empty($field)) {
-                    foreach (array_filter($values) as $value => $count) {
-                        $property = $api->searchOne('properties', ['term' => $value])->getContent();
-                        $result[$value] = [
-                            'o:id' => $property->id(),
-                            'o:term' => $value,
-                            'o:label' => $property->label(),
-                            'o-module-reference:values' => [],
-                        ];
-                        $result[$value]['o-module-reference:values'][] = [
-                            // TODO Get the label of the term.
-                            'o:label' => $value,
-                            '@language' => null,
-                            'count' => $count,
-                        ];
-                    }
-                } else {
-                    /** @var \Omeka\Api\Representation\PropertyRepresentation $property */
-                    $property = $api->searchOne('properties', ['term' => $field])->getContent();
-                    // FIXME When field is unknown, Omeka returns dcterms:title. Should be fixed in core.
-                    if ($property->term() === $field) {
-                        $result[$field] = [
-                            'o:id' => $property->id(),
-                            'o:term' => $field,
-                            'o:label' => $property->label(),
-                            'o-module-reference:values' => [],
-                        ];
-                    } else {
-                        $result[$field] = [
-                            'o:label' => $this->translate('Properties'), // @translate
-                            'o-module-reference:values' => [],
-                        ];
-                    }
-                    foreach (array_filter($values) as $value => $count) {
-                        $result[$field]['o-module-reference:values'][] = [
-                            'o:label' => $value,
-                            '@language' => null,
-                            'count' => $count,
-                        ];
-                    }
-                }
-            }
-        }
-
-        // Keep original order of fields.
-        if (!empty($query['field'])) {
-            $result = array_replace(array_fill_keys($fields, []), $result);
-        }
-
-        return $result;
+        return $this->references($fields, $query, $options)->list();
     }
 
     /**
