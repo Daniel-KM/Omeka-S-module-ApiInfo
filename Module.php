@@ -97,7 +97,10 @@ class Module extends AbstractModule
         $services = $this->getServiceLocator();
         $append = $services->get('Application')->getMvcEvent()->getRequest()
             ->getQuery()->get('append');
-        $appends = array_intersect((array) $append, ['urls', 'sites']);
+        if (!is_array($append)) {
+            $append = [$append];
+        }
+        $appends = array_intersect((array) $append, ['urls', 'sites', 'objects', 'subjects']);
         if (empty($appends)) {
             return;
         }
@@ -135,6 +138,22 @@ class Module extends AbstractModule
                         if ($hasItem) {
                             $toAppend['o:site'][] = $siteId;
                         }
+                    }
+                    break;
+                case 'objects':
+                    // @see \Omeka\Api\Representation\AbstractResourceEntityRepresentation::objectValues()
+                    foreach ($item->values() as $term => $propertyData) {
+                        foreach ($propertyData['values'] as $value) {
+                            if (strtok($value->type(), ':') === 'resource') {
+                                $toAppend['o:object'][$term][] = $value;
+                            }
+                        }
+                    }
+                    break;
+                case 'subjects':
+                    $subjectValues = $item->subjectValues();
+                    if ($subjectValues) {
+                        $toAppend['o:subject'] = $subjectValues;
                     }
                     break;
                 default:
