@@ -97,6 +97,9 @@ class ApiController extends AbstractRestfulController
                 $query = $this->cleanQuery(true);
                 $output = isset($query['output']) ? $query['output'] : 'default';
                 switch ($output) {
+                    case 'by_itemset':
+                        $result = $this->getByItemSet($id, $query);
+                        break;
                     case 'datatables':
                         $result = $this->getDatatables($id, $query);
                         break;
@@ -432,6 +435,119 @@ class ApiController extends AbstractRestfulController
         }
 
         return $data;
+    }
+
+    /**
+     * Provide the list of resources for datatables javascript library.
+     *
+     * @see https://datatables.net
+     *
+     * @param string $resource Only items is managed currently.
+     * @param array $query
+     * @return array
+     */
+    protected function getByItemSet($resource = null, array $query = [])
+    {
+        $isResource = empty($resource) || $resource === 'resources';
+
+        if ($isResource || $resource !== 'items') {
+            return $this->returnError(
+                $this->translate('Multiple resources are not implemented currently (only .'), // @translate
+                Response::STATUS_CODE_501
+            );
+        }
+
+        // TODO Manage pagination (included sub-resources).
+
+        $result = [
+            'total' => 0,
+            'type' => 'item_sets',
+            'data' => [],
+        ];
+
+        if (empty($query['item_set_id'])) {
+            return $result;
+        }
+
+        $itemSets = $query['item_set_id'];
+        if (!is_array($itemSets)) {
+            $itemSets = [$itemSets];
+        }
+
+        $itemSets = array_values(array_unique(array_filter(array_map('intval', $itemSets))));
+        if (empty($itemSets)) {
+            return $result;
+        }
+
+        // TODO Remove hardcoded per_page.
+        $paginationPerPage = $this->settings()->get('pagination_per_page');
+        if (empty($query['per_page'])) {
+            $query['per_page'] = $paginationPerPage;
+        } elseif ($query['per_page'] > 1000) {
+            return $this->returnError(
+                $this->translate('Payload too large.'), // @translate
+                Response::STATUS_CODE_413
+            );
+        }
+
+        // Required to avoid to return all results.
+        if (empty($query['page'])) {
+            $query['page'] = 1;
+        }
+
+        $api = $this->api();
+
+        // The media adapter doesn’t allow to get/count media of a site. See Module.
+        $queryMedia = $query;
+        if (isset($queryMedia['site_id'])) {
+            $queryMedia['items_site_id'] = $queryMedia['site_id'];
+            unset($queryMedia['site_id']);
+        }
+
+        // Public/private resources are automatically managed according to user.
+
+        foreach ($itemSets as $itemSetId) {
+            // The Omeka api doesn't allow to search an item set by id.
+            try {
+                $itemSet = $api->read('item_sets', ['id' => $itemSetId])->getContent();
+            } catch (NotFoundException $e) {
+                continue;
+            }
+            ++$result['total'];
+            $result['data'][] = [
+                'id' => $itemSetId,
+                'title' => (string) $itemSet->displayTitle(),
+            ];
+        }
+
+        // Currently, the simplest process to get items by item set is to loop on
+        // on each item set.
+        $queryNoItemSet = $query;
+        unset($queryNoItemSet['item_set_id']);
+        $queryMediaNoItemSet = $queryMedia;
+        unset($queryMediaNoItemSet['item_set_id']);
+
+        foreach ($result['data'] as $key => $itemSet) {
+            $currentQuery = $resource === 'media'
+                ? $queryMediaNoItemSet
+                : $queryNoItemSet;
+            $currentQuery['item_set_id'] = $itemSet['id'];
+            unset($currentQuery['page']);
+            unset($currentQuery['per_page']);
+            unset($currentQuery['offset']);
+            unset($currentQuery['limit']);
+            $datas = $this->getInfosResources($resource, $currentQuery);
+            $result['data'][$key]['total'] = $datas['total'];
+            $data = $api->search($resource, $currentQuery)->getContent();
+            foreach ($data as $res) {
+                $result['data'][$key][$resource][] = [
+                    'id' => $res->id(),
+                    'title' => $res->displayTitle(),
+                ];
+            }
+        }
+
+        return $result;
     }
 
     /**

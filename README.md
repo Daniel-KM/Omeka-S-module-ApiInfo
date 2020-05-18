@@ -34,7 +34,7 @@ Available infos:
 - `/api/infos/items`: total items
 - `/api/infos/media`: total media
 - `/api/infos/item_sets`: total item sets
-- `/api/infos/items?output=datatables`: formatted output for datatables
+- `/api/infos/items?output=xxx`: formatted output for `datatables` or `by_itemset`
 - `/api/infos/resources`: total resources
 - `/api/infos/sites`: total sites and pages
 - `/api/infos/files`: total files and file sizes
