@@ -144,16 +144,40 @@ class Module extends AbstractModule
                     // @see \Omeka\Api\Representation\AbstractResourceEntityRepresentation::objectValues()
                     foreach ($item->values() as $term => $propertyData) {
                         foreach ($propertyData['values'] as $value) {
-                            if (strtok($value->type(), ':') === 'resource') {
-                                $toAppend['o:object'][$term][] = $value;
+                            if (strtok($value->type(), ':') !== 'resource') {
+                                continue;
                             }
+                            $v = $value->valueResource();
+                            $resourceClass = $v->resourceClass();
+                            $resourceTemplate = $v->resourceTemplate();
+                            $toAppend['o:object'][$term][] = [
+                                '@id' => $v->apiUrl(),
+                                'o:id' => $v->id(),
+                                'o:type' => $v->getResourceJsonLdType(),
+                                'o:resource_class' => $resourceClass ? $resourceClass->getReference() : null,
+                                'o:resource_template' => $resourceTemplate ? $resourceTemplate->getReference() : null,
+                                'o:is_public' => $v->isPublic(),
+                                'o:title' => $v->displayTitle(),
+                            ];
                         }
                     }
                     break;
                 case 'subjects':
-                    $subjectValues = $item->subjectValues();
-                    if ($subjectValues) {
-                        $toAppend['o:subject'] = $subjectValues;
+                    foreach ($item->subjectValues() as $term => $values) {
+                        foreach ($values as $value) {
+                            $v = $value->resource();
+                            $resourceClass = $v->resourceClass();
+                            $resourceTemplate = $v->resourceTemplate();
+                            $toAppend['o:subject'][$term][] = [
+                                '@id' => $v->apiUrl(),
+                                'o:id' => $v->id(),
+                                'o:type' => $v->getResourceJsonLdType(),
+                                'o:resource_class' => $resourceClass ? $resourceClass->getReference() : null,
+                                'o:resource_template' => $resourceTemplate ? $resourceTemplate->getReference() : null,
+                                'o:is_public' => $v->isPublic(),
+                                'o:title' => $v->displayTitle(),
+                            ];
+                        }
                     }
                     break;
                 default:
