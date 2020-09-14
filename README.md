@@ -31,7 +31,8 @@ Data are available in `/api/infos/{name}` via a standard request.
 Available infos:
 - `/api/infos`: all available infos on resources and files
 - `/api/infos/{api_id}`: total of any registered resource
-- `/api/infos/items`: total items
+- `/api/infos/items`: total items and other infos with arguments `urls`, `sites`,
+  `objects`, `subjects`, `object_ids`, `subject_ids`.
 - `/api/infos/media`: total media
 - `/api/infos/item_sets`: total item sets
 - `/api/infos/items?output=xxx`: formatted output for `datatables` or `by_itemset`
