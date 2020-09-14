@@ -39,7 +39,7 @@ class ApiController extends AbstractRestfulController
      *
      * @var array
      */
-    protected $query;
+    protected $cleanQuery;
 
     /**
      * @param AuthenticationService $authenticationService
@@ -84,7 +84,7 @@ class ApiController extends AbstractRestfulController
     {
         $response = new \Omeka\Api\Response;
 
-        $this->query = null;
+        $this->cleanQuery = null;
 
         switch ($id) {
             case 'ping':
@@ -825,19 +825,19 @@ class ApiController extends AbstractRestfulController
     }
 
     /**
-     * Clean the query, in particular for the site id , either site id or site slug.
+     * Clean the query, in particular for the site id, either site id or site slug.
      *
      * @bool $keepPagination
      * @return array
      */
     protected function cleanQuery($keepPagination = false)
     {
-        if (!is_null($this->query)) {
+        if (!is_null($this->cleanQuery)) {
             if ($keepPagination) {
-                return $this->query;
+                return $this->cleanQuery;
             }
 
-            $query = $this->query;
+            $query = $this->cleanQuery;
             unset($query['page']);
             unset($query['per_page']);
             unset($query['offset']);
@@ -850,15 +850,15 @@ class ApiController extends AbstractRestfulController
             $siteSlug = $query['site_slug'];
             if ($siteSlug) {
                 $api = $this->api();
-                $site = $api->searchOne('sites', ['slug' => $siteSlug])->getContent();
-                if ($site) {
-                    $query['site_id'] = $site->id();
+                $siteId = $api->searchOne('sites', ['slug' => $siteSlug], ['initialize' => false, 'returnScalar' => 'id'])->getContent();
+                if ($siteId) {
+                    $query['site_id'] = $siteId;
                 }
             }
         }
 
-        $this->query = $query;
-        return $this->query;
+        $this->cleanQuery = $query;
+        return $this->cleanQuery;
     }
 
     protected function getIds()
