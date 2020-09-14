@@ -527,6 +527,14 @@ class ApiController extends AbstractRestfulController
         $queryMediaNoItemSet = $queryMedia;
         unset($queryMediaNoItemSet['item_set_id']);
 
+        $append = $this->params()->fromQuery('append');
+        if (!is_array($append)) {
+            $append = [$append];
+        }
+        $appends = array_intersect((array) $append, ['urls', 'sites', 'objects', 'subjects', 'object_ids', 'subject_ids']);
+        $appendObjectIds = in_array('object_ids', $appends);
+        $appendSubjectIds = in_array('subject_ids', $appends);
+
         foreach ($result['data'] as $key => $itemSet) {
             $currentQuery = $resource === 'media'
                 ? $queryMediaNoItemSet
@@ -540,10 +548,34 @@ class ApiController extends AbstractRestfulController
             $result['data'][$key]['total'] = $datas['total'];
             $data = $api->search($resource, $currentQuery)->getContent();
             foreach ($data as $res) {
-                $result['data'][$key][$resource][] = [
+                $resData = [
                     'id' => $res->id(),
                     'title' => $res->displayTitle(),
                 ];
+                if ($appendObjectIds) {
+                    $resData['data']['object_ids'] = [];
+                    /** @see \Omeka\Api\Representation\AbstractResourceEntityRepresentation::objectValues() */
+                    // Don't add duplicate.
+                    foreach ($res->values() as $property) {
+                        foreach ($property['values'] as $value) {
+                            if (strtok($value->type(), ':') === 'resource') {
+                                $resData['data']['object_ids'][$value->valueResource()->id()] = null;
+                            }
+                        }
+                    }
+                    $resData['data']['object_ids'] = array_keys($resData['data']['object_ids']);
+                }
+                if ($appendSubjectIds) {
+                    $resData['data']['subject_ids'] = [];
+                    /** @see \Omeka\Api\Representation\AbstractResourceEntityRepresentation::subjectValues() */
+                    foreach ($res->subjectValues() as $valueData) {
+                        foreach ($valueData as $value) {
+                            $resData['data']['subject_ids'][$value->valueResource()->id()] = null;
+                        }
+                    }
+                    $resData['data']['subject_ids'] = array_keys($resData['data']['subject_ids']);
+                }
+                $result['data'][$key][$resource][] = $resData;
             }
         }
 

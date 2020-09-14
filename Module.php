@@ -100,7 +100,7 @@ class Module extends AbstractModule
         if (!is_array($append)) {
             $append = [$append];
         }
-        $appends = array_intersect((array) $append, ['urls', 'sites', 'objects', 'subjects']);
+        $appends = array_intersect((array) $append, ['urls', 'sites', 'objects', 'subjects', 'object_ids', 'subject_ids']);
         if (empty($appends)) {
             return;
         }
@@ -178,6 +178,31 @@ class Module extends AbstractModule
                                 'o:title' => $v->displayTitle(),
                             ];
                         }
+                    }
+                    break;
+                case 'object_ids':
+                    // @see \Omeka\Api\Representation\AbstractResourceEntityRepresentation::objectValues()
+                    // Don't add duplicate.
+                    foreach ($this->values() as $property) {
+                        foreach ($property['values'] as $value) {
+                            if (strtok($value->type(), ':') === 'resource') {
+                                $toAppend['object_ids'][$value->valueResource()->id()] = null;
+                            }
+                        }
+                    }
+                    if (isset($toAppend['object_ids'])) {
+                        $toAppend['object_ids'] = array_keys($toAppend['object_ids']);
+                    }
+                    break;
+                case 'subject_ids':
+                    /** @see \Omeka\Api\Representation\AbstractResourceEntityRepresentation::subjectValues() */
+                    foreach ($item->subjectValues() as $values) {
+                        foreach ($values as $value) {
+                            $toAppend['subject_ids'][$value->valueResource()->id()] = null;
+                        }
+                    }
+                    if (isset($toAppend['subbject_ids'])) {
+                        $toAppend['subject_ids'] = array_keys($toAppend['subject_ids']);
                     }
                     break;
                 default:
