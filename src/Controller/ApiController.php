@@ -490,11 +490,29 @@ class ApiController extends AbstractRestfulController
             );
         }
 
+        $shortTitle = isset($query['short_title']) ? $query['short_title'] : [];
+        if (!empty($shortTitle)) {
+            if (!is_array($shortTitle)) {
+                $shortTitle = explode(',', $shortTitle);
+            }
+            $shortTitle = array_unique($shortTitle);
+        }
+
         if (isset($query['fields'])) {
             $fields = is_array($query['fields']) ? $query['fields'] : explode(',', $query['fields']);
+            if ($shortTitle) {
+                // Keep title first.
+                if (in_array('o:title', $fields)) {
+                    array_unshift($fields, 'o:title', 'o:short_title');
+                } else {
+                    array_unshift($fields, 'o:short_title');
+                }
+            } elseif (($pos = array_search('o:short_title', $fields, true)) !== false) {
+                unset($fields[$pos]);
+            }
             $fields = array_unique($fields);
         } else {
-            $fields = ['o:title'];
+            $fields = $shortTitle ? ['o:title', 'o:short_title'] : ['o:title'];
         }
 
         // Required to avoid to return all results.
@@ -561,6 +579,14 @@ class ApiController extends AbstractRestfulController
                 foreach ($fields as $field) {
                     if ($field === 'o:title') {
                         $resData['o:title'] = $res->displayTitle();
+                    } elseif ($field === 'o:short_title') {
+                        foreach ($shortTitle as $prop) {
+                            $v = $res->value($prop);
+                            if ($v) {
+                                $resData['o:short_title'] = (string) $v;
+                                break;
+                            }
+                        }
                     } else {
                         $v = $res->value($field);
                         if ($v) {
