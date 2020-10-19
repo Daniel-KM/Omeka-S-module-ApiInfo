@@ -254,14 +254,14 @@ class Module extends AbstractModule
         $this->isOldOmeka = \Omeka\Module::VERSION < 2;
         $alias = $this->isOldOmeka ? $adapter->getEntityClass() : 'omeka_root';
 
-        if (array_key_exists('has_original', $query)) {
+        if (array_key_exists('has_original', $query) && (string) $query['has_original'] !== '') {
             $qb->andWhere($expr->eq(
                 $alias . '.hasOriginal',
                 $adapter->createNamedParameter($qb, (int) (bool) $query['has_original'])
             ));
         }
 
-        if (array_key_exists('has_thumbnails', $query)) {
+        if (array_key_exists('has_thumbnails', $query) && (string) $query['has_thumbnails'] !== '') {
             $qb->andWhere($expr->eq(
                 $alias . '.hasThumbnails',
                 $adapter->createNamedParameter($qb, (int) (bool) $query['has_thumbnails'])
