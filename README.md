@@ -9,6 +9,9 @@ sites and resources, that are not available in the default api.
 
 This module is mainly designed for external apps.
 
+This module is compatible with Omeka v3, but keep the old workarounds (totals,
+thumbnail urls) for the near future.
+
 
 Installation
 ------------
@@ -17,7 +20,7 @@ See general end user documentation for [installing a module].
 
 * From the zip
 
-Download the last release [`ApiInfo.zip`] from the list of releases, and
+Download the last release [ApiInfo.zip] from the list of releases, and
 uncompress it in the `modules` directory.
 
 * From the source and for development
@@ -84,7 +87,7 @@ Other available infos:
 TODO
 ----
 
-- Make the infos available directly by the internal api.
+- [ ] Make the infos available directly by the internal api (and deprecate ones included in Omeka v3).
 
 
 Warning
@@ -105,7 +108,7 @@ See online issues on the [module issues] page.
 License
 -------
 
-This plugin is published under the [CeCILL v2.1] licence, compatible with
+This plugin is published under the [CeCILL v2.1] license, compatible with
 [GNU/GPL] and approved by [FSF] and [OSI].
 
 In consideration of access to the source code and the rights to copy, modify and
@@ -128,18 +131,18 @@ altered, and that no provisions are either added or removed herefrom.
 Copyright
 ---------
 
-* Copyright Daniel Berthereau, 2019 (see [Daniel-KM] on GitHub)
+* Copyright Daniel Berthereau, 2019 (see [Daniel-KM] on GitLab)
 
 
-[Api Info]: https://github.com/biblibre/Omeka-S-module-ApiInfo
+[Api Info]: https://gitlab.com/Daniel-KM/Omeka-S-module-ApiInfo
 [Omeka S]: https://www.omeka.org/s
-[`ApiInfo.zip`]: https://github.com/biblibre/Omeka-S-module-ApiInfo/releases
-[Reference]: https://github.com/biblibre/Omeka-S-module-Reference
+[ApiInfo.zip]: https://gitlab.com/Daniel-KM/Omeka-S-module-ApiInfo/releases
+[Reference]: https://gitlab.com/Daniel-KM/Omeka-S-module-Reference
 [datatables]: https://editor.datatables.net
-[module issues]: https://github.com/biblibre/Omeka-S-module-ApiInfo/issues
+[module issues]: https://gitlab.com/Daniel-KM/Omeka-S-module-ApiInfo/issues
 [CeCILL v2.1]: https://www.cecill.info/licences/Licence_CeCILL_V2.1-en.html
 [GNU/GPL]: https://www.gnu.org/licenses/gpl-3.0.html
 [FSF]: https://www.fsf.org
 [OSI]: http://opensource.org
 [GitLab]: https://gitlab.com/Daniel-KM
-[Daniel-KM]: https://github.com/Daniel-KM "Daniel Berthereau"
+[Daniel-KM]: https://gitlab.com/Daniel-KM "Daniel Berthereau"
