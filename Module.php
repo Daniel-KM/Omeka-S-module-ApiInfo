@@ -163,6 +163,7 @@ class Module extends AbstractModule
                     }
                     break;
                 case 'subjects':
+                    // @see \Omeka\Api\Representation\AbstractResourceEntityRepresentation::subjectValues()
                     foreach ($item->subjectValues() as $term => $values) {
                         foreach ($values as $value) {
                             $v = $value->resource();
@@ -195,7 +196,8 @@ class Module extends AbstractModule
                     }
                     break;
                 case 'subject_ids':
-                    /** @see \Omeka\Api\Representation\AbstractResourceEntityRepresentation::subjectValues() */
+                    // @see \Omeka\Api\Representation\AbstractResourceEntityRepresentation::subjectValues()
+                    // Don't add duplicate.
                     foreach ($item->subjectValues() as $values) {
                         foreach ($values as $value) {
                             $toAppend['subject_ids'][$value->valueResource()->id()] = null;

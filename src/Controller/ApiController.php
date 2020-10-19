@@ -452,7 +452,7 @@ class ApiController extends AbstractRestfulController
 
         if ($isResource || $resource !== 'items') {
             return $this->returnError(
-                $this->translate('Multiple resources are not implemented currently (only .'), // @translate
+                $this->translate('Multiple resources are not implemented currently (only items).'), // @translate
                 Response::STATUS_CODE_501
             );
         }
@@ -488,6 +488,13 @@ class ApiController extends AbstractRestfulController
                 $this->translate('Payload too large.'), // @translate
                 Response::STATUS_CODE_413
             );
+        }
+
+        if (isset($query['fields'])) {
+            $fields = is_array($query['fields']) ? $query['fields'] : explode(',', $query['fields']);
+            $fields = array_unique($fields);
+        } else {
+            $fields = ['o:title'];
         }
 
         // Required to avoid to return all results.
@@ -550,11 +557,21 @@ class ApiController extends AbstractRestfulController
             foreach ($data as $res) {
                 $resData = [
                     'id' => $res->id(),
-                    'title' => $res->displayTitle(),
                 ];
+                foreach ($fields as $field) {
+                    if ($field === 'o:title') {
+                        $resData['o:title'] = $res->displayTitle();
+                    } else {
+                        $v = $res->value($field);
+                        if ($v) {
+                            $resData[$field] = json_decode(json_encode($v), true);
+                        }
+                    }
+                }
+
                 if ($appendObjectIds) {
                     $resData['data']['object_ids'] = [];
-                    /** @see \Omeka\Api\Representation\AbstractResourceEntityRepresentation::objectValues() */
+                    // @see \Omeka\Api\Representation\AbstractResourceEntityRepresentation::objectValues()
                     // Don't add duplicate.
                     foreach ($res->values() as $property) {
                         foreach ($property['values'] as $value) {
@@ -567,7 +584,8 @@ class ApiController extends AbstractRestfulController
                 }
                 if ($appendSubjectIds) {
                     $resData['data']['subject_ids'] = [];
-                    /** @see \Omeka\Api\Representation\AbstractResourceEntityRepresentation::subjectValues() */
+                    // @see \Omeka\Api\Representation\AbstractResourceEntityRepresentation::subjectValues()
+                    // Don't add duplicate.
                     foreach ($res->subjectValues() as $valueData) {
                         foreach ($valueData as $value) {
                             $resData['data']['subject_ids'][$value->valueResource()->id()] = null;
