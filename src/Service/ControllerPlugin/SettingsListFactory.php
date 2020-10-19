@@ -3,7 +3,7 @@ namespace ApiInfo\Service\ControllerPlugin;
 
 use ApiInfo\Mvc\Controller\Plugin\SettingsList;
 use Interop\Container\ContainerInterface;
-use Zend\ServiceManager\Factory\FactoryInterface;
+use Laminas\ServiceManager\Factory\FactoryInterface;
 
 class SettingsListFactory implements FactoryInterface
 {

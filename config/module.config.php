@@ -23,7 +23,7 @@ return [
             'api' => [
                 'child_routes' => [
                     'info' => [
-                        'type' => \Zend\Router\Http\Segment::class,
+                        'type' => \Laminas\Router\Http\Segment::class,
                         'options' => [
                             'route' => '/infos[/:id]',
                             'defaults' => [

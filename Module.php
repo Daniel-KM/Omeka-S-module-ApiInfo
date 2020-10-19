@@ -4,9 +4,9 @@ namespace ApiInfo;
 
 use Doctrine\ORM\QueryBuilder;
 use Omeka\Module\AbstractModule;
-use Zend\EventManager\Event;
-use Zend\EventManager\SharedEventManagerInterface;
-use Zend\Mvc\MvcEvent;
+use Laminas\EventManager\Event;
+use Laminas\EventManager\SharedEventManagerInterface;
+use Laminas\Mvc\MvcEvent;
 
 class Module extends AbstractModule
 {
@@ -19,7 +19,7 @@ class Module extends AbstractModule
     {
         parent::onBootstrap($event);
 
-        /** @var \Zend\Permissions\Acl $acl */
+        /** @var \Laminas\Permissions\Acl $acl */
         $services = $this->getServiceLocator();
         $acl = $services->get('Omeka\Acl');
 
@@ -68,7 +68,7 @@ class Module extends AbstractModule
             'o-module-collecting:text' => null,
             'o-module-collecting:input_type' => 'hidden',
             'o-module-collecting:select_options' => null,
-            'o-module-collecting:resource_query' => (new \Zend\Form\Element\Csrf('csrf_' . $jsonLd['o:id']))->getValue(),
+            'o-module-collecting:resource_query' => (new \Laminas\Form\Element\Csrf('csrf_' . $jsonLd['o:id']))->getValue(),
             'o-module-collecting:media_type' => null,
             'o-module-collecting:required' => false,
             'o:property' => null,
@@ -85,7 +85,7 @@ class Module extends AbstractModule
         foreach ($jsonLd['o:block'] as $key => $block) {
             if ($block->layout() === 'contactUs') {
                 $jsonBlock = $block->jsonSerialize();
-                $jsonBlock['o:data']['csrf'] = (new \Zend\Form\Element\Csrf('csrf_' . $jsonLd['o:id']))->getValue();
+                $jsonBlock['o:data']['csrf'] = (new \Laminas\Form\Element\Csrf('csrf_' . $jsonLd['o:id']))->getValue();
                 $jsonLd['o:block'][$key] = $jsonBlock;
             }
         }

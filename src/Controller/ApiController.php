@@ -6,11 +6,11 @@ use Omeka\Api\Exception\NotFoundException;
 use Omeka\Api\Representation\SiteRepresentation;
 use Omeka\Mvc\Exception;
 use Omeka\View\Model\ApiJsonModel;
-use Zend\Authentication\AuthenticationService;
-use Zend\Http\Response;
-use Zend\Mvc\Controller\AbstractRestfulController;
-use Zend\Mvc\MvcEvent;
-use Zend\Stdlib\RequestInterface as Request;
+use Laminas\Authentication\AuthenticationService;
+use Laminas\Http\Response;
+use Laminas\Mvc\Controller\AbstractRestfulController;
+use Laminas\Mvc\MvcEvent;
+use Laminas\Stdlib\RequestInterface as Request;
 
 class ApiController extends AbstractRestfulController
 {
@@ -852,7 +852,7 @@ class ApiController extends AbstractRestfulController
                             //     'o-module-collecting:text' => null,
                             //     'o-module-collecting:input_type' => 'hidden',
                             //     'o-module-collecting:select_options' => null,
-                            //     'o-module-collecting:resource_query' => (new \Zend\Form\Element\Csrf('csrf'))->getValue(),
+                            //     'o-module-collecting:resource_query' => (new \Laminas\Form\Element\Csrf('csrf'))->getValue(),
                             //     'o-module-collecting:media_type' => null,
                             //     'o-module-collecting:required' => false,
                             //     'o:property' => null,
@@ -960,7 +960,7 @@ class ApiController extends AbstractRestfulController
     {
         $translate = $this->viewHelpers()->get('translate');
         $translatorTextDomain = $translate->getTranslatorTextDomain();
-        /** @var \Zend\I18n\Translator\Translator $translator */
+        /** @var \Laminas\I18n\Translator\Translator $translator */
         $translator = $translate->getTranslator()->getDelegatedTranslator();
 
         // TODO How to get all the English strings?
@@ -996,7 +996,7 @@ class ApiController extends AbstractRestfulController
     }
 
     /**
-     * @return \Zend\Authentication\AuthenticationService
+     * @return \Laminas\Authentication\AuthenticationService
      */
     protected function getAuthenticationService()
     {

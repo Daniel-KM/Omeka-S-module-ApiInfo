@@ -3,7 +3,7 @@ namespace ApiInfo\Mvc\Controller\Plugin;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\QueryBuilder;
-use Zend\Mvc\Controller\Plugin\AbstractPlugin;
+use Laminas\Mvc\Controller\Plugin\AbstractPlugin;
 
 class SettingsList extends AbstractPlugin
 {
