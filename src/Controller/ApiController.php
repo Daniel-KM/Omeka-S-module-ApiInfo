@@ -1,16 +1,16 @@
-<?php
+<?php declare(strict_types=1);
 namespace ApiInfo\Controller;
 
 use Doctrine\ORM\EntityManager;
-use Omeka\Api\Exception\NotFoundException;
-use Omeka\Api\Representation\SiteRepresentation;
-use Omeka\Mvc\Exception;
-use Omeka\View\Model\ApiJsonModel;
 use Laminas\Authentication\AuthenticationService;
 use Laminas\Http\Response;
 use Laminas\Mvc\Controller\AbstractRestfulController;
 use Laminas\Mvc\MvcEvent;
 use Laminas\Stdlib\RequestInterface as Request;
+use Omeka\Api\Exception\NotFoundException;
+use Omeka\Api\Representation\SiteRepresentation;
+use Omeka\Mvc\Exception;
+use Omeka\View\Model\ApiJsonModel;
 
 class ApiController extends AbstractRestfulController
 {
@@ -295,7 +295,7 @@ class ApiController extends AbstractRestfulController
      * @param mixed $value
      * @see \Omeka\Controller\ApiController::setViewOption()
      */
-    public function setViewOption($key, $value)
+    public function setViewOption($key, $value): void
     {
         $this->viewOptions[$key] = $value;
     }
@@ -318,7 +318,7 @@ class ApiController extends AbstractRestfulController
      * @throws Exception\UnsupportedMediaTypeException
      * @see \Omeka\Controller\ApiController::checkContentType()
      */
-    protected function checkContentType(Request $request)
+    protected function checkContentType(Request $request): void
     {
         // Require application/json Content-Type for certain methods.
         $method = strtolower($request->getMethod());

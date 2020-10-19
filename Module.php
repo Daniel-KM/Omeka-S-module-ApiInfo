@@ -1,12 +1,12 @@
-<?php
+<?php declare(strict_types=1);
 
 namespace ApiInfo;
 
 use Doctrine\ORM\QueryBuilder;
-use Omeka\Module\AbstractModule;
 use Laminas\EventManager\Event;
 use Laminas\EventManager\SharedEventManagerInterface;
 use Laminas\Mvc\MvcEvent;
+use Omeka\Module\AbstractModule;
 
 class Module extends AbstractModule
 {
@@ -15,7 +15,7 @@ class Module extends AbstractModule
         return include __DIR__ . '/config/module.config.php';
     }
 
-    public function onBootstrap(MvcEvent $event)
+    public function onBootstrap(MvcEvent $event): void
     {
         parent::onBootstrap($event);
 
@@ -30,7 +30,7 @@ class Module extends AbstractModule
         );
     }
 
-    public function attachListeners(SharedEventManagerInterface $sharedEventManager)
+    public function attachListeners(SharedEventManagerInterface $sharedEventManager): void
     {
         $sharedEventManager->attach(
             \Collecting\Api\Representation\CollectingFormRepresentation::class,
@@ -57,7 +57,7 @@ class Module extends AbstractModule
         );
     }
 
-    public function filterResourceJsonLdCollectingForm(Event $event)
+    public function filterResourceJsonLdCollectingForm(Event $event): void
     {
         // To add the csrf as an additionnal prompt in the form allows to manage
         // external offline app more easily.
@@ -76,7 +76,7 @@ class Module extends AbstractModule
         $event->setParam('jsonLd', $jsonLd);
     }
 
-    public function filterResourceJsonSitePage(Event $event)
+    public function filterResourceJsonSitePage(Event $event): void
     {
         // TODO Normalize this process to avoid to serve a csrf: it may not be needed for a contact form.
         // To add the csrf in the contact us block allows to contact us by api.
@@ -92,7 +92,7 @@ class Module extends AbstractModule
         $event->setParam('jsonLd', $jsonLd);
     }
 
-    public function filterJsonLd(Event $event)
+    public function filterJsonLd(Event $event): void
     {
         $services = $this->getServiceLocator();
         $query = $services->get('Application')->getMvcEvent()->getRequest()->getQuery();
@@ -244,7 +244,7 @@ class Module extends AbstractModule
         $event->setParam('jsonLd', $jsonLd);
     }
 
-    public function apiSearchQueryMedia(Event $event)
+    public function apiSearchQueryMedia(Event $event): void
     {
         $adapter = $event->getTarget();
         $qb = $event->getParam('queryBuilder');
@@ -301,7 +301,7 @@ class Module extends AbstractModule
      * @param QueryBuilder $qb
      * @param array $query
      */
-    protected function limitMediaQuery(QueryBuilder $qb, array $query = null)
+    protected function limitMediaQuery(QueryBuilder $qb, array $query = null): void
     {
         if (empty($query)) {
             return;

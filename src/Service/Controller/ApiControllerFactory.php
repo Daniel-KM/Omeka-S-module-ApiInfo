@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types=1);
 namespace ApiInfo\Service\Controller;
 
 use ApiInfo\Controller\ApiController;
