@@ -95,14 +95,22 @@ class Module extends AbstractModule
     public function filterJsonLd(Event $event)
     {
         $services = $this->getServiceLocator();
-        $append = $services->get('Application')->getMvcEvent()->getRequest()
-            ->getQuery()->get('append');
+        $query = $services->get('Application')->getMvcEvent()->getRequest()->getQuery();
+        $append = $query->get('append');
         if (!is_array($append)) {
             $append = [$append];
         }
         $appends = array_intersect((array) $append, ['urls', 'sites', 'objects', 'subjects', 'object_ids', 'subject_ids']);
         if (empty($appends)) {
             return;
+        }
+
+        $shortTitle = $query->get('short_title');
+        if (!empty($shortTitle)) {
+            if (!is_array($shortTitle)) {
+                $shortTitle = explode(',', $shortTitle);
+            }
+            $shortTitle = array_unique($shortTitle);
         }
 
         /** @var \Omeka\Api\Representation\ItemRepresentation $item */
@@ -150,7 +158,7 @@ class Module extends AbstractModule
                             $v = $value->valueResource();
                             $resourceClass = $v->resourceClass();
                             $resourceTemplate = $v->resourceTemplate();
-                            $toAppend['o:object'][$term][] = [
+                            $r = [
                                 '@id' => $v->apiUrl(),
                                 'o:id' => $v->id(),
                                 'o:type' => $v->getResourceJsonLdType(),
@@ -159,6 +167,16 @@ class Module extends AbstractModule
                                 'o:is_public' => $v->isPublic(),
                                 'o:title' => $v->displayTitle(),
                             ];
+                            if ($shortTitle) {
+                                foreach ($shortTitle as $prop) {
+                                    $vv = $v->value($prop);
+                                    if ($vv) {
+                                        $r['o:short_title'] = (string) $vv;
+                                        break;
+                                    }
+                                }
+                            }
+                            $toAppend['o:object'][$term][] = $r;
                         }
                     }
                     break;
@@ -169,7 +187,7 @@ class Module extends AbstractModule
                             $v = $value->resource();
                             $resourceClass = $v->resourceClass();
                             $resourceTemplate = $v->resourceTemplate();
-                            $toAppend['o:subject'][$term][] = [
+                            $r = [
                                 '@id' => $v->apiUrl(),
                                 'o:id' => $v->id(),
                                 'o:type' => $v->getResourceJsonLdType(),
@@ -178,6 +196,16 @@ class Module extends AbstractModule
                                 'o:is_public' => $v->isPublic(),
                                 'o:title' => $v->displayTitle(),
                             ];
+                            if ($shortTitle) {
+                                foreach ($shortTitle as $prop) {
+                                    $vv = $v->value($prop);
+                                    if ($vv) {
+                                        $r['o:short_title'] = (string) $vv;
+                                        break;
+                                    }
+                                }
+                            }
+                            $toAppend['o:subject'][$term][] = $r;
                         }
                     }
                     break;
