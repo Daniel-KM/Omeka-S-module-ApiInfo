@@ -574,7 +574,7 @@ class ApiController extends AbstractRestfulController
             $data = $api->search($resource, $currentQuery)->getContent();
             foreach ($data as $res) {
                 $resData = [
-                    'id' => $res->id(),
+                    'o:id' => $res->id(),
                 ];
                 foreach ($fields as $field) {
                     if ($field === 'o:title') {
