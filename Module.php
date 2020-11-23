@@ -142,7 +142,8 @@ class Module extends AbstractModule
                     $siteIds = $api->search('sites', [], ['returnScalar' => 'id'])->getContent();
                     $siteIds = array_map('intval', $siteIds);
                     foreach ($siteIds as $siteId) {
-                        $hasItem = $api->search('items', ['id' => $item->id(), 'site_id' => $siteId])->getTotalResults();
+                        // Don't load entities: only needed info is total.
+                        $hasItem = $api->search('items', ['id' => $item->id(), 'site_id' => $siteId, 'limit' => 0])->getTotalResults();
                         if ($hasItem) {
                             $toAppend['o:site'][] = $siteId;
                         }

@@ -410,6 +410,9 @@ class ApiController extends AbstractRestfulController
     {
         $api = $this->api();
 
+        // Don't load entities if the only information needed is total results.
+        $query['limit'] = 0;
+
         // The media adapter doesn’t allow to get/count media of a site. See Module.
         $queryMedia = $query;
         if (isset($queryMedia['site_id'])) {
@@ -700,6 +703,9 @@ class ApiController extends AbstractRestfulController
             ? ['id' => $query['site_id']]
             : [];
 
+        // Don't load entities if the only information needed is total results.
+        $query['limit'] = 0;
+
         $api = $this->api();
 
         $data = [];
@@ -717,6 +723,11 @@ class ApiController extends AbstractRestfulController
         if (isset($query['site_id'])) {
             $query['items_site_id'] = $query['site_id'];
             unset($query['site_id']);
+        }
+
+        // Don't load entities if the only information needed is total results.
+        if (empty($query['limit'])) {
+            $query['limit'] = 0;
         }
 
         // Public/private resources are automatically managed according to user.
@@ -757,8 +768,7 @@ class ApiController extends AbstractRestfulController
             'id' => $id,
         ]);
         $events->trigger('api.infos.resources', $this, $args);
-        $data = $args['data'];
-        return $data;
+        return $args['data'];
     }
 
     protected function getSiteData()
