@@ -6,6 +6,8 @@ use Doctrine\ORM\QueryBuilder;
 use Laminas\EventManager\Event;
 use Laminas\EventManager\SharedEventManagerInterface;
 use Laminas\Mvc\MvcEvent;
+use Laminas\Router\Http\RouteMatch;
+use Laminas\View\Model\ViewModel;
 use Omeka\Module\AbstractModule;
 
 class Module extends AbstractModule
@@ -19,7 +21,7 @@ class Module extends AbstractModule
     {
         parent::onBootstrap($event);
 
-        /** @var \Laminas\Permissions\Acl $acl */
+        /** @var \Omeka\Permissions\Acl $acl */
         $services = $this->getServiceLocator();
         $acl = $services->get('Omeka\Acl');
 
@@ -89,6 +91,25 @@ class Module extends AbstractModule
                 $jsonLd['o:block'][$key] = $jsonBlock;
             }
         }
+
+        $services = $this->getServiceLocator();
+        $query = $services->get('Application')->getMvcEvent()->getRequest()->getQuery();
+        $append = $query->get('append') ?: [];
+        if (!is_array($append)) {
+            $append = [$append];
+        }
+        $appends = array_intersect((array) $append, ['html', 'blocks']);
+        foreach ($appends as $append) {
+            switch ($append) {
+                case 'html':
+                    $jsonLd['o-module-api-info:append']['html'] = $this->fetchPageHtml($jsonLd, false);
+                    break;
+                case 'blocks':
+                    $jsonLd['o-module-api-info:append']['blocks'] = $this->fetchPageHtml($jsonLd, true);
+                    break;
+            }
+        }
+
         $event->setParam('jsonLd', $jsonLd);
     }
 
@@ -295,7 +316,7 @@ class Module extends AbstractModule
      * Limit the results with a query (generally the site query).
      *
      * @see \Annotate\Api\Adapter\AnnotationAdapter::buildQuery()
-     * @see \Reference\Mvc\Controller\Plugin\Reference::limitQuery()
+     * @see \Reference\Mvc\Controller\Plugin\References::limitQuery()
      *
      * @param QueryBuilder $qb
      * @param array $query
@@ -338,5 +359,68 @@ class Module extends AbstractModule
 
         $qb
             ->andWhere($qb->expr()->in('omeka_root.item', $subDql));
+    }
+
+    protected function fetchPageHtml(array $jsonLd, bool $blocksOnly = false)
+    {
+        $services = $this->getServiceLocator();
+        $api = $services->get('Omeka\ApiManager');
+        $page = $api->read('site_pages', ['id' => $jsonLd['o:id']])->getContent();
+        $site = $page->site();
+
+        // Create the page as the controller do, without the layout.
+        /** @var \Laminas\View\Renderer\PhpRenderer $viewRenderer */
+        $viewRenderer = $services->get('ViewRenderer');
+
+        /** @see \Omeka\Mvc\MvcListeners::preparePublicSite() */
+        // Need to set the site for site settings.
+        $siteSettings = $services->get('Omeka\Settings\Site');
+        $siteSettings->setTargetId($site->id());
+        // TODO Add theme?
+        $services->get('ControllerPluginManager')->get('currentSite')->setSite($site);
+
+        /** @see \Omeka\Controller\Site\PageController::showAction() */
+        $viewHelpers = $services->get('ViewHelperManager');
+        $viewHelpers->get('sitePagePagination')->setPage($page);
+
+        $view = new ViewModel([
+            'site' => $page->site(),
+            'page' => $page,
+            'displayNavigation' => false,
+        ]);
+
+        if ($blocksOnly) {
+            $view
+                ->setVariable('pageViewModel', $view)
+                ->setTemplate('omeka/site/page/content');
+            // TODO Some blocks are not renderable currently.
+            try {
+                $content = $viewRenderer->render($view);
+            } catch (\Exception$e) {
+                $content = $e;
+            }
+        } else {
+            $view
+                ->setTemplate('omeka/site/page/show');
+            $contentView = clone $view;
+            $contentView
+                ->setTemplate('omeka/site/page/content')
+                ->setVariable('pageViewModel', $view);
+            // FIXME Why add content as child to view is not working? Some blocks fail for router.
+            // $view->addChild($contentView, 'content');
+            try {
+                $content = $viewRenderer->render($contentView);
+            } catch (\Exception$e) {
+                $content = $e;
+            }
+            $view->setVariable('content', $content);
+            try {
+                $content = $viewRenderer->render($view);
+            } catch (\Exception$e) {
+                $content = $e;
+            }
+        }
+
+        return $content;
     }
 }

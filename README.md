@@ -82,12 +82,34 @@ Other available infos:
 - list of files (urls) directly from the item data: append the arg `append=urls`.
 - list of sites (ids) directly from the item data: append the arg `append=sites`.
 - list of files and sites (ids) directly from the item data: append the arg `append[]=urls&append[]=sites`.
+- html of page content and html of blocks for site pages: append the arg `append[]=html&append[]=blocks`.
+
+Note about the display of site page html: only pages of the main site are
+available. To render blocks with links, the site slug should be added in the
+config (file "config/local.config.php"):
+
+```php
+    'router' => [
+        'routes' => [
+            'site' => [
+                'options' => [
+                    'defaults' => [
+                        // Required by module ApiInfo to get html of site pages.
+                        // Set the slug of the main site.
+                        'site-slug' => 'my-default-site-for-api',
+                    ],
+                ],
+            ],
+        ],
+    ],
+```
 
 
 TODO
 ----
 
 - [ ] Make the infos available directly by the internal api (and deprecate ones included in Omeka v3).
+- [ ] Allow to render html of any page.
 
 
 Warning
