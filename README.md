@@ -2,7 +2,8 @@ Api Info (module for Omeka S)
 =============================
 
 > __New versions of this module and support for Omeka S version 3.0 and above
-> are available on [GitLab], which seems to respect users and privacy better.__
+> are available on [GitLab], which seems to respect users and privacy better
+> than the previous repository.__
 
 [Api Info] is a module for [Omeka S] that gives access to some infos about Omeka
 sites and resources, that are not available in the default api.
@@ -156,7 +157,7 @@ altered, and that no provisions are either added or removed herefrom.
 Copyright
 ---------
 
-* Copyright Daniel Berthereau, 2019 (see [Daniel-KM] on GitLab)
+* Copyright Daniel Berthereau, 2019-2020 (see [Daniel-KM] on GitLab)
 
 
 [Api Info]: https://gitlab.com/Daniel-KM/Omeka-S-module-ApiInfo
