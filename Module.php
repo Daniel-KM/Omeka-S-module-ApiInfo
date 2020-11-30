@@ -224,9 +224,24 @@ class Module extends AbstractModule
 
     public function filterJsonLdResourceTemplate(Event $event): void
     {
-        // If language is not set, this is the language of the installation.
         $services = $this->getServiceLocator();
         $query = $services->get('Application')->getMvcEvent()->getRequest()->getQuery();
+        $append = $query->get('append');
+        if (!is_array($append)) {
+            $append = [$append];
+        }
+        $appendables = ['all', 'term', 'label', 'comment'];
+        $appends = array_intersect(array_unique($append), $appendables);
+        if (empty($appends)) {
+            return;
+        }
+
+        $appendAll = in_array('all', $appendables) || count($appendables) >= 3;
+        $appendTerm = $appendAll || in_array('term', $appendables);
+        $appendLabel = $appendAll || in_array('label', $appendables);
+        $appendComment = $appendAll || in_array('comment', $appendables);
+
+        // If language is not set, this is the language of the installation.
         $locale = $query->get('locale');
         $translator = $services->get('MvcTranslator');
         if ($locale) {
@@ -245,20 +260,31 @@ class Module extends AbstractModule
             $class = $services->get('Omeka\ApiManager')->read('resource_classes', ['id' => $classRef->id()], [], ['initialize' => false])->getContent();
             $classRef = $jsonLd['o:resource_class'];
             $jsonLd['o:resource_class'] = $classRef->jsonSerialize();
-            $jsonLd['o:resource_class']['o:term'] = $class->term();
-            $jsonLd['o:resource_class']['o:label'] = $translator->translate($class->label());
+            if ($appendTerm) {
+                $jsonLd['o:resource_class']['o:term'] = $class->term();
+            }
+            if ($appendLabel) {
+                $jsonLd['o:resource_class']['o:label'] = $translator->translate($class->label());
+            }
+            if ($appendComment) {
+                $jsonLd['o:resource_class']['o:comment'] = $translator->translate($class->comment());
+            }
         }
-        if ($jsonLd['o:title_property']) {
-            $property = $jsonLd['o:title_property'];
-            $jsonLd['o:title_property'] = $property->jsonSerialize();
-            $jsonLd['o:title_property']['o:term'] = $properties[$jsonLd['o:title_property']['o:id']]['term'];
-            $jsonLd['o:title_property']['o:label'] = $translator->translate($properties[$jsonLd['o:title_property']['o:id']]['label']);
-        }
-        if ($jsonLd['o:description_property']) {
-            $property = $jsonLd['o:description_property'];
-            $jsonLd['o:description_property'] = $property->jsonSerialize();
-            $jsonLd['o:description_property']['o:term'] = $properties[$jsonLd['o:description_property']['o:id']]['term'];
-            $jsonLd['o:description_property']['o:label'] = $translator->translate($properties[$jsonLd['o:description_property']['o:id']]['label']);
+
+        foreach (['o:title_property', 'o:description_property'] as $key) {
+            if (!empty($jsonLd[$key])) {
+                $jsonLd[$key] = $jsonLd[$key]->jsonSerialize();
+                $property = $properties[$jsonLd[$key]['o:id']];
+                if ($appendTerm) {
+                    $jsonLd[$key]['o:term'] = $property['term'];
+                }
+                if ($appendLabel) {
+                    $jsonLd[$key]['o:label'] = $translator->translate($property['label']);
+                }
+                if ($appendComment) {
+                    $jsonLd[$key]['o:comment'] = $translator->translate($property['comment']);
+                }
+            }
         }
 
         /** @var \Omeka\Api\Representation\ResourceTemplatePropertyRepresentation $rtp */
@@ -502,6 +528,7 @@ class Module extends AbstractModule
                 'DISTINCT property.id AS id',
                 'CONCAT(vocabulary.prefix, ":", property.local_name) AS term',
                 'property.label AS label',
+                'property.comment AS comment',
             ])
             ->from('property', 'property')
             ->innerJoin('property', 'vocabulary', 'vocabulary', 'property.vocabulary_id = vocabulary.id')

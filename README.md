@@ -78,6 +78,9 @@ Specific data can be added via a listener on `api.infos.resources`.
   and `items_site_id`.
 
 Other available infos:
+- terms and labels appended in resources templates and translated with `append[]=all`
+  The argument `append` can be `term`, `label`, `comment` or `all`. Locale can
+  be used too: `locale=fr`.
 - filter for media: `has_original=1`, `has_thumbnails=1`
 - list of files (urls) directly from the item data: append the arg `append=urls`.
 - list of sites (ids) directly from the item data: append the arg `append=sites`.
