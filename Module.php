@@ -6,7 +6,6 @@ use Doctrine\ORM\QueryBuilder;
 use Laminas\EventManager\Event;
 use Laminas\EventManager\SharedEventManagerInterface;
 use Laminas\Mvc\MvcEvent;
-use Laminas\Router\Http\RouteMatch;
 use Laminas\View\Model\ViewModel;
 use Omeka\Module\AbstractModule;
 
@@ -35,15 +34,32 @@ class Module extends AbstractModule
     public function attachListeners(SharedEventManagerInterface $sharedEventManager): void
     {
         $sharedEventManager->attach(
-            \Collecting\Api\Representation\CollectingFormRepresentation::class,
+            \Omeka\Api\Representation\ItemRepresentation::class,
             'rep.resource.json',
-            [$this, 'filterResourceJsonLdCollectingForm']
+            [$this, 'filterJsonLdItem']
+        );
+
+        $sharedEventManager->attach(
+            \Omeka\Api\Representation\ResourceTemplateRepresentation::class,
+            'rep.resource.json',
+            [$this, 'filterJsonLdResourceTemplate']
+        );
+        $sharedEventManager->attach(
+            \AdvancedResourceTemplate\Api\Representation\ResourceTemplateRepresentation::class,
+            'rep.resource.json',
+            [$this, 'filterJsonLdResourceTemplate']
         );
 
         $sharedEventManager->attach(
             \Omeka\Api\Representation\SitePageRepresentation::class,
             'rep.resource.json',
-            [$this, 'filterResourceJsonSitePage']
+            [$this, 'filterJsonLdSitePage']
+        );
+
+        $sharedEventManager->attach(
+            \Collecting\Api\Representation\CollectingFormRepresentation::class,
+            'rep.resource.json',
+            [$this, 'filterJsonLdCollectingForm']
         );
 
         $sharedEventManager->attach(
@@ -51,69 +67,9 @@ class Module extends AbstractModule
             'api.search.query',
             [$this, 'apiSearchQueryMedia']
         );
-
-        $sharedEventManager->attach(
-            \Omeka\Api\Representation\ItemRepresentation::class,
-            'rep.resource.json',
-            [$this, 'filterJsonLd']
-        );
     }
 
-    public function filterResourceJsonLdCollectingForm(Event $event): void
-    {
-        // To add the csrf as an additionnal prompt in the form allows to manage
-        // external offline app more easily.
-        $jsonLd = $event->getParam('jsonLd');
-        $jsonLd['o-module-collecting:prompt'][] = [
-            'o:id' => 'csrf',
-            'o-module-collecting:type' => 'csrf',
-            'o-module-collecting:text' => null,
-            'o-module-collecting:input_type' => 'hidden',
-            'o-module-collecting:select_options' => null,
-            'o-module-collecting:resource_query' => (new \Laminas\Form\Element\Csrf('csrf_' . $jsonLd['o:id']))->getValue(),
-            'o-module-collecting:media_type' => null,
-            'o-module-collecting:required' => false,
-            'o:property' => null,
-        ];
-        $event->setParam('jsonLd', $jsonLd);
-    }
-
-    public function filterResourceJsonSitePage(Event $event): void
-    {
-        // TODO Normalize this process to avoid to serve a csrf: it may not be needed for a contact form.
-        // To add the csrf in the contact us block allows to contact us by api.
-        /** @var \Omeka\Api\Representation\SitePageBlockRepresentation $block */
-        $jsonLd = $event->getParam('jsonLd');
-        foreach ($jsonLd['o:block'] as $key => $block) {
-            if ($block->layout() === 'contactUs') {
-                $jsonBlock = $block->jsonSerialize();
-                $jsonBlock['o:data']['csrf'] = (new \Laminas\Form\Element\Csrf('csrf_' . $jsonLd['o:id']))->getValue();
-                $jsonLd['o:block'][$key] = $jsonBlock;
-            }
-        }
-
-        $services = $this->getServiceLocator();
-        $query = $services->get('Application')->getMvcEvent()->getRequest()->getQuery();
-        $append = $query->get('append') ?: [];
-        if (!is_array($append)) {
-            $append = [$append];
-        }
-        $appends = array_intersect((array) $append, ['html', 'blocks']);
-        foreach ($appends as $append) {
-            switch ($append) {
-                case 'html':
-                    $jsonLd['o-module-api-info:append']['html'] = $this->fetchPageHtml($jsonLd, false);
-                    break;
-                case 'blocks':
-                    $jsonLd['o-module-api-info:append']['blocks'] = $this->fetchPageHtml($jsonLd, true);
-                    break;
-            }
-        }
-
-        $event->setParam('jsonLd', $jsonLd);
-    }
-
-    public function filterJsonLd(Event $event): void
+    public function filterJsonLdItem(Event $event): void
     {
         $services = $this->getServiceLocator();
         $query = $services->get('Application')->getMvcEvent()->getRequest()->getQuery();
@@ -263,6 +219,112 @@ class Module extends AbstractModule
         }
 
         $jsonLd['o-module-api-info:append'] = $toAppend;
+        $event->setParam('jsonLd', $jsonLd);
+    }
+
+    public function filterJsonLdResourceTemplate(Event $event): void
+    {
+        // If language is not set, this is the language of the installation.
+        $services = $this->getServiceLocator();
+        $query = $services->get('Application')->getMvcEvent()->getRequest()->getQuery();
+        $locale = $query->get('locale');
+        $translator = $services->get('MvcTranslator');
+        if ($locale) {
+            if (extension_loaded('intl')) {
+                \Locale::setDefault($locale);
+            }
+            $translator->getDelegatedTranslator()->setLocale($locale);
+        }
+
+        $jsonLd = $event->getParam('jsonLd');
+
+        $properties = $this->getPropertiesById();
+
+        if ($jsonLd['o:resource_class']) {
+            $classRef = $jsonLd['o:resource_class'];
+            $class = $services->get('Omeka\ApiManager')->read('resource_classes', ['id' => $classRef->id()], [], ['initialize' => false])->getContent();
+            $classRef = $jsonLd['o:resource_class'];
+            $jsonLd['o:resource_class'] = $classRef->jsonSerialize();
+            $jsonLd['o:resource_class']['o:term'] = $class->term();
+            $jsonLd['o:resource_class']['o:label'] = $translator->translate($class->label());
+        }
+        if ($jsonLd['o:title_property']) {
+            $property = $jsonLd['o:title_property'];
+            $jsonLd['o:title_property'] = $property->jsonSerialize();
+            $jsonLd['o:title_property']['o:term'] = $properties[$jsonLd['o:title_property']['o:id']]['term'];
+            $jsonLd['o:title_property']['o:label'] = $translator->translate($properties[$jsonLd['o:title_property']['o:id']]['label']);
+        }
+        if ($jsonLd['o:description_property']) {
+            $property = $jsonLd['o:description_property'];
+            $jsonLd['o:description_property'] = $property->jsonSerialize();
+            $jsonLd['o:description_property']['o:term'] = $properties[$jsonLd['o:description_property']['o:id']]['term'];
+            $jsonLd['o:description_property']['o:label'] = $translator->translate($properties[$jsonLd['o:description_property']['o:id']]['label']);
+        }
+
+        /** @var \Omeka\Api\Representation\ResourceTemplatePropertyRepresentation $rtp */
+        foreach ($jsonLd['o:resource_template_property'] as $key => $rtp) {
+            $property = $rtp->property();
+            $rtp = $rtp->jsonSerialize();
+            $rtp['o:property'] = $property->getReference()->jsonSerialize();
+            $rtp['o:property']['o:term'] = $properties[$rtp['o:property']['o:id']]['term'];
+            $rtp['o:property']['o:label'] = $translator->translate($properties[$rtp['o:property']['o:id']]['label']);
+            $jsonLd['o:resource_template_property'][$key] = $rtp;
+        }
+
+        $event->setParam('jsonLd', $jsonLd);
+    }
+
+    public function filterJsonLdCollectingForm(Event $event): void
+    {
+        // To add the csrf as an additionnal prompt in the form allows to manage
+        // external offline app more easily.
+        $jsonLd = $event->getParam('jsonLd');
+        $jsonLd['o-module-collecting:prompt'][] = [
+            'o:id' => 'csrf',
+            'o-module-collecting:type' => 'csrf',
+            'o-module-collecting:text' => null,
+            'o-module-collecting:input_type' => 'hidden',
+            'o-module-collecting:select_options' => null,
+            'o-module-collecting:resource_query' => (new \Laminas\Form\Element\Csrf('csrf_' . $jsonLd['o:id']))->getValue(),
+            'o-module-collecting:media_type' => null,
+            'o-module-collecting:required' => false,
+            'o:property' => null,
+        ];
+        $event->setParam('jsonLd', $jsonLd);
+    }
+
+    public function filterJsonLdSitePage(Event $event): void
+    {
+        // TODO Normalize this process to avoid to serve a csrf: it may not be needed for a contact form.
+        // To add the csrf in the contact us block allows to contact us by api.
+        /** @var \Omeka\Api\Representation\SitePageBlockRepresentation $block */
+        $jsonLd = $event->getParam('jsonLd');
+        foreach ($jsonLd['o:block'] as $key => $block) {
+            if ($block->layout() === 'contactUs') {
+                $jsonBlock = $block->jsonSerialize();
+                $jsonBlock['o:data']['csrf'] = (new \Laminas\Form\Element\Csrf('csrf_' . $jsonLd['o:id']))->getValue();
+                $jsonLd['o:block'][$key] = $jsonBlock;
+            }
+        }
+
+        $services = $this->getServiceLocator();
+        $query = $services->get('Application')->getMvcEvent()->getRequest()->getQuery();
+        $append = $query->get('append') ?: [];
+        if (!is_array($append)) {
+            $append = [$append];
+        }
+        $appends = array_intersect((array) $append, ['html', 'blocks']);
+        foreach ($appends as $append) {
+            switch ($append) {
+                case 'html':
+                    $jsonLd['o-module-api-info:append']['html'] = $this->fetchPageHtml($jsonLd, false);
+                    break;
+                case 'blocks':
+                    $jsonLd['o-module-api-info:append']['blocks'] = $this->fetchPageHtml($jsonLd, true);
+                    break;
+            }
+        }
+
         $event->setParam('jsonLd', $jsonLd);
     }
 
@@ -422,5 +484,34 @@ class Module extends AbstractModule
         }
 
         return $content;
+    }
+
+    protected function getPropertiesById()
+    {
+        static $properties;
+
+        if (isset($properties)) {
+            return $properties;
+        }
+
+        /** @var \Doctrine\DBAL\Connection $connection */
+        $connection = $this->getServiceLocator()->get('Omeka\Connection');
+        $qb = $connection->createQueryBuilder();
+        $qb
+            ->select([
+                'DISTINCT property.id AS id',
+                'CONCAT(vocabulary.prefix, ":", property.local_name) AS term',
+                'property.label AS label',
+            ])
+            ->from('property', 'property')
+            ->innerJoin('property', 'vocabulary', 'vocabulary', 'property.vocabulary_id = vocabulary.id')
+            ->orderBy('vocabulary.id', 'asc')
+            ->addOrderBy('property.id', 'asc')
+            ->addGroupBy('property.id')
+        ;
+        $stmt = $connection->executeQuery($qb);
+        $properties = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $properties = array_combine(array_column($properties, 'id'), $properties);
+        return $properties;
     }
 }
