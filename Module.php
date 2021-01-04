@@ -36,7 +36,22 @@ class Module extends AbstractModule
         $sharedEventManager->attach(
             \Omeka\Api\Representation\ItemRepresentation::class,
             'rep.resource.json',
-            [$this, 'filterJsonLdItem']
+            [$this, 'filterJsonLdResource']
+        );
+        $sharedEventManager->attach(
+            \Omeka\Api\Representation\MediaRepresentation::class,
+            'rep.resource.json',
+            [$this, 'filterJsonLdResource']
+        );
+        $sharedEventManager->attach(
+            \Omeka\Api\Representation\ItemSetRepresentation::class,
+            'rep.resource.json',
+            [$this, 'filterJsonLdResource']
+                );
+        $sharedEventManager->attach(
+            \Annotate\Api\Representation\AnnotationRepresentation::class,
+            'rep.resource.json',
+            [$this, 'filterJsonLdResource']
         );
 
         $sharedEventManager->attach(
@@ -63,19 +78,13 @@ class Module extends AbstractModule
         );
 
         $sharedEventManager->attach(
-            \Annotate\Api\Representation\AnnotationRepresentation::class,
-            'rep.resource.json',
-            [$this, 'filterJsonLdAnnotation']
-        );
-
-        $sharedEventManager->attach(
             \Omeka\Api\Adapter\MediaAdapter::class,
             'api.search.query',
             [$this, 'apiSearchQueryMedia']
         );
     }
 
-    public function filterJsonLdItem(Event $event): void
+    public function filterJsonLdResource(Event $event): void
     {
         $services = $this->getServiceLocator();
         $query = $services->get('Application')->getMvcEvent()->getRequest()->getQuery();
@@ -83,7 +92,7 @@ class Module extends AbstractModule
         if (!is_array($append)) {
             $append = [$append];
         }
-        $appends = array_intersect((array) $append, ['urls', 'sites', 'objects', 'subjects', 'object_ids', 'subject_ids']);
+        $appends = array_intersect((array) $append, ['urls', 'sites', 'objects', 'subjects', 'object_ids', 'subject_ids', 'owner_name']);
         if (empty($appends)) {
             return;
         }
@@ -96,21 +105,30 @@ class Module extends AbstractModule
             $shortTitle = array_unique($shortTitle);
         }
 
-        /** @var \Omeka\Api\Representation\ItemRepresentation $item */
-        $item = $event->getTarget();
+        /** @var \Omeka\Api\Representation\AbstractResourceEntityRepresentation $resource */
+        $resource = $event->getTarget();
         $jsonLd = $event->getParam('jsonLd');
 
         $toAppend = [];
 
         foreach ($appends as $append) {
             switch ($append) {
+                case 'owner_name':
+                    if (!empty($jsonLd['o:owner'])) {
+                        $jsonLd['o:owner'] = json_decode(json_encode($jsonLd['o:owner']), true);
+                        $jsonLd['o:owner']['o:name'] = $resource->owner()->name();
+                    }
+                    break;
                 case 'urls':
-                    if ($thumbnail = $item->thumbnail()) {
+                    // TODO Move to default key as owner.
+                    if ($thumbnail = $resource->thumbnail()) {
                         $toAppend['o:thumbnail']['o:asset_url'] = $thumbnail->assetUrl();
                     }
-
+                    if ($resource->resourceName() !== 'items') {
+                        break;
+                    }
                     /** @var \Omeka\Api\Representation\MediaRepresentation $media*/
-                    foreach ($item->media() as $media) {
+                    foreach ($resource->media() as $media) {
                         $urls = [];
                         if ($thumbnail = $media->thumbnail()) {
                             $urls['o:thumbnail']['o:asset_url'] = $thumbnail->assetUrl();
@@ -121,12 +139,15 @@ class Module extends AbstractModule
                     }
                     break;
                 case 'sites':
+                    if ($resource->resourceName() !== 'items') {
+                        break;
+                    }
                     $api = $services->get('Omeka\ApiManager');
                     $siteIds = $api->search('sites', [], ['returnScalar' => 'id'])->getContent();
                     $siteIds = array_map('intval', $siteIds);
                     foreach ($siteIds as $siteId) {
                         // Don't load entities: only needed info is total.
-                        $hasItem = $api->search('items', ['id' => $item->id(), 'site_id' => $siteId, 'limit' => 0])->getTotalResults();
+                        $hasItem = $api->search('resource', ['id' => $resource->id(), 'site_id' => $siteId, 'limit' => 0])->getTotalResults();
                         if ($hasItem) {
                             $toAppend['o:site'][] = $siteId;
                         }
@@ -134,7 +155,7 @@ class Module extends AbstractModule
                     break;
                 case 'objects':
                     // @see \Omeka\Api\Representation\AbstractResourceEntityRepresentation::objectValues()
-                    foreach ($item->values() as $term => $propertyData) {
+                    foreach ($resource->values() as $term => $propertyData) {
                         foreach ($propertyData['values'] as $value) {
                             if (strtok($value->type(), ':') !== 'resource') {
                                 continue;
@@ -166,7 +187,7 @@ class Module extends AbstractModule
                     break;
                 case 'subjects':
                     // @see \Omeka\Api\Representation\AbstractResourceEntityRepresentation::subjectValues()
-                    foreach ($item->subjectValues() as $term => $values) {
+                    foreach ($resource->subjectValues() as $term => $values) {
                         foreach ($values as $value) {
                             $v = $value->resource();
                             $resourceClass = $v->resourceClass();
@@ -210,7 +231,7 @@ class Module extends AbstractModule
                 case 'subject_ids':
                     // @see \Omeka\Api\Representation\AbstractResourceEntityRepresentation::subjectValues()
                     // Don't add duplicate.
-                    foreach ($item->subjectValues() as $values) {
+                    foreach ($resource->subjectValues() as $values) {
                         foreach ($values as $value) {
                             $toAppend['subject_ids'][$value->valueResource()->id()] = null;
                         }
@@ -357,30 +378,6 @@ class Module extends AbstractModule
             'o-module-collecting:required' => false,
             'o:property' => null,
         ];
-        $event->setParam('jsonLd', $jsonLd);
-    }
-
-    public function filterJsonLdAnnotation(Event $event): void
-    {
-        $services = $this->getServiceLocator();
-        $query = $services->get('Application')->getMvcEvent()->getRequest()->getQuery();
-        $append = $query->get('append');
-        if (!is_array($append)) {
-            $append = [$append];
-        }
-        $appends = array_intersect((array) $append, ['owner_name']);
-        if (empty($appends)) {
-            return;
-        }
-
-        $resource = $event->getTarget();
-        $jsonLd = $event->getParam('jsonLd');
-
-        if (!empty($jsonLd['o:owner'])) {
-            $jsonLd['o:owner'] = json_decode(json_encode($jsonLd['o:owner']), true);
-            $jsonLd['o:owner']['o:name'] = $resource->owner()->name();
-        }
-
         $event->setParam('jsonLd', $jsonLd);
     }
 
