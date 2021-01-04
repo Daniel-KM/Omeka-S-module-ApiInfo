@@ -1,7 +1,16 @@
 <?php declare(strict_types=1);
+
 namespace ApiInfo;
 
 return [
+    'service_manager' => [
+        'invokables' => [
+            Mvc\MvcListeners::class => Mvc\MvcListeners::class,
+        ],
+    ],
+    'listeners' => [
+        Mvc\MvcListeners::class,
+    ],
     'view_manager' => [
         'strategies' => [
             'ViewJsonStrategy',
