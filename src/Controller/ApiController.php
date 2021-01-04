@@ -1,4 +1,5 @@
 <?php declare(strict_types=1);
+
 namespace ApiInfo\Controller;
 
 use Doctrine\ORM\EntityManager;
@@ -58,26 +59,17 @@ class ApiController extends AbstractRestfulController
 
     public function create($data)
     {
-        return $this->returnError(
-            $this->translate('Method Not Allowed'), // @translate
-            Response::STATUS_CODE_405
-        );
+        return $this->returnErrorMethodNotAllowed();
     }
 
     public function delete($id)
     {
-        return $this->returnError(
-            $this->translate('Method Not Allowed'), // @translate
-            Response::STATUS_CODE_405
-        );
+        return $this->returnErrorMethodNotAllowed();
     }
 
     public function deleteList($data)
     {
-        return $this->returnError(
-            $this->translate('Method Not Allowed'), // @translate
-            Response::STATUS_CODE_405
-        );
+        return $this->returnErrorMethodNotAllowed();
     }
 
     public function get($id)
@@ -178,50 +170,32 @@ class ApiController extends AbstractRestfulController
 
     public function head($id = null)
     {
-        return $this->returnError(
-            $this->translate('Method Not Allowed'), // @translate
-            Response::STATUS_CODE_405
-        );
+        return $this->returnErrorMethodNotAllowed();
     }
 
     public function options()
     {
-        return $this->returnError(
-            $this->translate('Method Not Allowed'), // @translate
-            Response::STATUS_CODE_405
-        );
+        return $this->returnErrorMethodNotAllowed();
     }
 
     public function patch($id, $data)
     {
-        return $this->returnError(
-            $this->translate('Method Not Allowed'), // @translate
-            Response::STATUS_CODE_405
-        );
+        return $this->returnErrorMethodNotAllowed();
     }
 
     public function replaceList($data)
     {
-        return $this->returnError(
-            $this->translate('Method Not Allowed'), // @translate
-            Response::STATUS_CODE_405
-        );
+        return $this->returnErrorMethodNotAllowed();
     }
 
     public function patchList($data)
     {
-        return $this->returnError(
-            $this->translate('Method Not Allowed'), // @translate
-            Response::STATUS_CODE_405
-        );
+        return $this->returnErrorMethodNotAllowed();
     }
 
     public function update($id, $data)
     {
-        return $this->returnError(
-            $this->translate('Method Not Allowed'), // @translate
-            Response::STATUS_CODE_405
-        );
+        return $this->returnErrorMethodNotAllowed();
     }
 
     public function notFoundAction()
@@ -389,7 +363,15 @@ class ApiController extends AbstractRestfulController
      */
     protected function isUserLogged()
     {
-        return $this->getAuthenticationService()->hasIdentity();
+        return $this->authenticationService->hasIdentity();
+    }
+
+    protected function returnErrorMethodNotAllowed()
+    {
+        return $this->returnError(
+            $this->translate('Method Not Allowed'), // @translate
+            Response::STATUS_CODE_405
+        );
     }
 
     protected function returnError($message, $statusCode = Response::STATUS_CODE_400, array $errors = null)
@@ -956,7 +938,7 @@ class ApiController extends AbstractRestfulController
     protected function getCurrentUserData()
     {
         /** @var \Omeka\Entity\User $user */
-        $user = $this->getAuthenticationService()->getIdentity();
+        $user = $this->authenticationService->getIdentity();
         if (!$user) {
             // Return empty array instead of null to simplify check.
             return [];
@@ -984,7 +966,7 @@ class ApiController extends AbstractRestfulController
 
     protected function getReferences()
     {
-        $query = $this->params()->fromQuery();
+        $query = $this->cleanQuery();
 
         // Field may be an array.
         // Empty string field means meta results.
@@ -1003,22 +985,6 @@ class ApiController extends AbstractRestfulController
         unset($options['query']);
 
         return $this->references($fields, $query, $options)->list();
-    }
-
-    /**
-     * @return \Laminas\Authentication\AuthenticationService
-     */
-    protected function getAuthenticationService()
-    {
-        return $this->authenticationService;
-    }
-
-    /**
-     * @return \Doctrine\ORM\EntityManager
-     */
-    protected function getEntityManager()
-    {
-        return $this->entityManager;
     }
 
     /**
