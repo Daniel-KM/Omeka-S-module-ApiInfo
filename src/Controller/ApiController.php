@@ -9,6 +9,7 @@ use Laminas\Mvc\Controller\AbstractRestfulController;
 use Laminas\Mvc\MvcEvent;
 use Laminas\Stdlib\RequestInterface as Request;
 use Omeka\Api\Exception\NotFoundException;
+use Omeka\Api\Representation\AbstractResourceEntityRepresentation;
 use Omeka\Api\Representation\SiteRepresentation;
 use Omeka\Mvc\Exception;
 use Omeka\Site\BlockLayout\Manager as BlockLayoutManager;
@@ -93,12 +94,13 @@ class ApiController extends AbstractRestfulController
             case 'ping':
                 $result = 1;
                 break;
+            case 'resources':
             case 'items':
             case 'media':
             case 'item_sets':
             case $id === 'annotations' && $this->hasResource('annotations'):
                 $query = $this->cleanQuery(true);
-                $output = isset($query['output']) ? $query['output'] : 'default';
+                $output = $query['output'] ?? 'default';
                 switch ($output) {
                     case 'by_itemset':
                         $result = $this->getByItemSet($id, $query);
@@ -106,16 +108,14 @@ class ApiController extends AbstractRestfulController
                     case 'datatables':
                         $result = $this->getDatatables($id, $query);
                         break;
+                    case 'tree':
+                        $result = $this->getTree($id, $query);
+                        break;
                     default:
                         $query = $this->cleanQuery(false);
-                        $result = $this->getInfosResources($id, $query);
+                        $result = $this->getInfosResources($id === 'resources' ? null : $id, $query);
                         break;
                 }
-                break;
-
-            case 'resources':
-                $query = $this->cleanQuery(false);
-                $result = $this->getInfosResources(null, $query);
                 break;
 
             case 'sites':
@@ -403,7 +403,7 @@ class ApiController extends AbstractRestfulController
         return new ApiJsonModel($result, $this->getViewOptions());
     }
 
-    protected function getInfosResources($resource = null, array $query = [])
+    protected function getInfosResources($resource = null, array $query = []): array
     {
         $api = $this->api();
 
@@ -446,7 +446,7 @@ class ApiController extends AbstractRestfulController
      * @param array $query
      * @return array
      */
-    protected function getByItemSet($resource = null, array $query = [])
+    protected function getByItemSet($resource = null, array $query = []): array
     {
         $isResource = empty($resource) || $resource === 'resources';
 
@@ -490,7 +490,7 @@ class ApiController extends AbstractRestfulController
             );
         }
 
-        $shortTitle = isset($query['short_title']) ? $query['short_title'] : [];
+        $shortTitle = $query['short_title'] ?? [];
         if (!empty($shortTitle)) {
             if (!is_array($shortTitle)) {
                 $shortTitle = explode(',', $shortTitle);
@@ -635,7 +635,7 @@ class ApiController extends AbstractRestfulController
      * @param array $query
      * @return array
      */
-    protected function getDatatables($resource = null, array $query = [])
+    protected function getDatatables($resource = null, array $query = []): array
     {
         $isResource = empty($resource) || $resource === 'resources';
 
@@ -677,7 +677,7 @@ class ApiController extends AbstractRestfulController
 
         $datas = $this->getInfosResources($resource, $this->cleanQuery(false));
         $data = [
-            'draw' => isset($query['draw']) ? $query['draw'] : 0,
+            'draw' => $query['draw'] ?? 0,
             'recordsTotal' => 0,
             'recordsFiltered' => 0,
             'data' => [],
@@ -691,6 +691,126 @@ class ApiController extends AbstractRestfulController
         }
 
         return $data;
+    }
+
+    /**
+     * Provide the full results for a tree of resources, mainly for d3js.
+     */
+    protected function getTree(string $resource = null, array $query = []): array
+    {
+        $isResource = empty($resource) || $resource === 'resources';
+
+        if ($isResource) {
+            return $this->returnError(
+                $this->translate('Multiple resources are not implemented currently.'), // @translate
+                Response::STATUS_CODE_501
+            );
+        }
+
+        $termTitle = $query['tree_title'] ?? null;
+        $termName = $query['tree_name'] ?? null;
+        $termParent = $query['tree_parent'] ?? null;
+        $termChild = $query['tree_child'] ?? 'dcterms:hasPart';
+        $termBase = $query['tree_base'] ?? $termChild;
+
+        if ($termTitle === 'o:title') {
+            $termTitle = null;
+        }
+        if ($termName === 'o:title') {
+            $termName = null;
+        }
+
+        // If there is a parent term, get only the resource without parents.
+        if ($termParent) {
+            $query['property'][] = ['joiner' => 'and', 'type' => 'nex', 'property' => $termParent];
+        } else {
+            $termParent = 'dcterms:isPartOf';
+        }
+        $roots = $this->api()->search($resource, $query)->getContent();
+        if (empty($roots)) {
+            return [];
+        }
+
+        $titleAndName = function (AbstractResourceEntityRepresentation $resource) use ($termTitle, $termName): array {
+            $title = $termTitle
+                ? (string) $resource->value($termTitle)
+                : '';
+            if (!strlen($title)) {
+                $title = $resource->displayTitle();
+            }
+            $name = (string) $resource->value($termName);
+            return [$title, $name];
+        };
+
+        $baseResources = function (AbstractResourceEntityRepresentation $resource) use ($termBase): array {
+            $values = $resource->value($termBase, ['all' => true, 'type' => ['resource', 'resource:item', 'resource:itemset', 'resource:media', 'resource:annotation']]);
+            return array_map(function ($v) {
+                return $v->valueResource();
+            }, $values);
+        };
+
+        $childrenResources = function (AbstractResourceEntityRepresentation $resource) use ($termChild): array {
+            $values = $resource->value($termChild, ['all' => true, 'type' => ['resource', 'resource:item', 'resource:itemset', 'resource:media', 'resource:annotation']]);
+            return array_map(function ($v) {
+                return $v->valueResource();
+            }, $values);
+        };
+
+        if (count($roots) === 1) {
+            $root = reset($roots);
+            [$title, $name] = $titleAndName($root);
+            $tree = [
+                'id' => $root->id(),
+                'name' => $name ?: '0',
+                'title' => $title,
+                'children' => $baseResources($root),
+            ];
+        } elseif (!empty($query['item_set_id'])
+            && $itemSet = $this->api()->searchOne('item_sets', ['id' => $query['item_set_id']])->getContent()
+        ) {
+            [$title, $name] = $titleAndName($itemSet);
+            $tree = [
+                'id' => $itemSet->id(),
+                'name' => $name ?: '0',
+                'title' => $title,
+                'children' => $roots,
+            ];
+        } else {
+            $tree = [
+                'id' => null,
+                'name' => '0',
+                'title' => $this->translate('Tree'), // @translate,
+                'children' => $roots,
+            ];
+        }
+
+        $maxLevel = 200;
+        $buildTree = null;
+        $buildTree = function (array $branchs, array &$listIds, $parentId = null, $level = 0) use ($maxLevel, $titleAndName, $childrenResources, &$buildTree): array {
+            if ($level > $maxLevel) {
+                return [];
+            }
+            $subtree = [];
+            foreach ($branchs as $branch) {
+                $id = $branch->id();
+                if ($id === $parentId || in_array($id, $listIds)) {
+                    continue;
+                }
+                $listIds[] = $id;
+                [$title, $name] = $titleAndName($branch);
+                $subtree[] = [
+                    'id' => $branch->id(),
+                    'name' => $name ?: $title,
+                    'title' => $title,
+                    'children' => $buildTree($childrenResources($branch), $listIds, $id, $level + 1),
+                ];
+            }
+            return $subtree;
+        };
+
+        $listIds = [];
+        $tree['children'] = $buildTree($tree['children'], $listIds, $tree['id']);
+        return $tree;
     }
 
     protected function getInfosSites()
