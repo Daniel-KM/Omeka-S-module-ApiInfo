@@ -38,21 +38,51 @@ Data are available in `/api/infos/{name}` via a standard request.
 Available infos:
 - `/api/infos`: all available infos on resources and files
 - `/api/infos/{api_id}`: total of any registered resource
-- `/api/infos/items`: total items and other infos with arguments `urls`, `sites`,
-  `objects`, `subjects`, `object_ids`, `subject_ids`.
-- `/api/infos/media`: total media
-- `/api/infos/item_sets`: total item sets
-- `/api/infos/items?output=xxx`: formatted output for `datatables` or `by_itemset`
-- `/api/infos/resources`: total resources
-- `/api/infos/sites`: total sites and pages
-- `/api/infos/files`: total files and file sizes
+  - `/api/infos/items`: total items
+  - `/api/infos/media`: total media
+  - `/api/infos/item_sets`: total item sets
+  - `/api/infos/resources`: total resources
+  - `/api/infos/sites`: total sites and pages
+  - `/api/infos/files`: total files and file sizes
+- `/api/infos/{api_id}?append=xx` or `/api/infos/{api_id}?append[]=xx&append[]=yy`
+  with `urls`, `sites`, `objects`, `subjects`, `object_ids`, `subject_ids`,
+  `owner_name`: append some infos for resources (items, media, item sets, and
+  annotations)
 - `/api/infos/site_data`: list of sites with full data (experimental)
 - `/api/infos/settings`: list of main settings (experimental)
 - `/api/infos/site_settings`: list of site settings (experimental)
 - `/api/infos/ids?types[]=items`: list of all ids of specified types
+- `/api/infos/items?output=xxx`: formatted output for `datatables`, `by_itemset`
+  or `tree`
+  - datatables: [datatables] is a js library to display data as a paginated and
+    searchable table.
+  - For tree, two modes are available. Either the query return the root id(s),
+    either it returns all the ids of the tree.
+    - query that returns only root id(s): the simplest query is to specify ids
+      with `id=xx` or `id[]=xx`, or any other query. The tree is built with
+      "dcterms:hasPart" by default. The term can be changed with argument `tree_child`.
+      When the root uses a different term than other levels, for example with a
+      skos thesaurus that uses `skos:hasTopConcept` and `skos:narrower`, the
+      argument `tree_base` can be used.
+    - query that returns all ids: the same arguments should be used (`tree_child`
+      and `tree_base`), plus `tree_parent`. This last argument is required,
+      because there is no default, so without it, the tree is built as in the
+      first case and all ids are a root.
+    For example, for a thesaurus built with the module [Thesaurus], you can use
+    (case 1):
+    https://example.org/api/infos/items?id=###&tree_child_base=skos:hasTopConcept&tree_child=skos:narrower&output=tree
+    To build a tree from an item set, you can use (case 2):
+    https://example.org/api/infos/items?item_set_id=###&tree_parent=dcterms:isPartOf&output=tree
+    Of course, in this second case, you can complete the query with `property[0][joiner]=and&property[0][type]=nex&property[0][property]=dcterms:isPartOf` directly in order to go back to the first case.
+    Furthermore, the default name (or the level) is `bibo:shortTitle` and the
+    default title is the default title of the resource. They can be changed with
+    args `tree_name` and `tree_title`. When there are multiple roots, the name
+    of the root can be specified with the first item set in the query.
 - `/api/infos/user`: metadata of the current user (experimental)
 - `/api/infos/translations?locale=fr`: all translations for the specified
   language (experimental)
+- `/api/infos/mappings?`: all mappings for any item query, requires module [Mapping]
+  If `block_id` is set, the params and query from the block will be used.
 - `/api/infos/references?text=example`: all totals for the specified text for
   each properties (experimental), requires module [Reference]
 - `/api/infos/references?text=example&field=dcterms:subject`: all references for
@@ -64,9 +94,6 @@ Available infos:
 
 The response is for all sites by default. Add argument `site_id={##}` or `site_slug={slug}`
 to get data for a site. The response supports the api keys, so rights are checked.
-
-The response can can be formatted according to the argument `output`.
-[datatables] is a js library to display data as a paginated and searchable table.
 
 Specific data can be added via a listener on `api.infos.resources`.
 
@@ -157,13 +184,15 @@ altered, and that no provisions are either added or removed herefrom.
 Copyright
 ---------
 
-* Copyright Daniel Berthereau, 2019-2020 (see [Daniel-KM] on GitLab)
+* Copyright Daniel Berthereau, 2019-2021 (see [Daniel-KM] on GitLab)
 
 
 [Api Info]: https://gitlab.com/Daniel-KM/Omeka-S-module-ApiInfo
 [Omeka S]: https://www.omeka.org/s
 [ApiInfo.zip]: https://gitlab.com/Daniel-KM/Omeka-S-module-ApiInfo/releases
+[Mapping]: https://gitlab.com/omeka-s-modules/Mapping
 [Reference]: https://gitlab.com/Daniel-KM/Omeka-S-module-Reference
+[Thesaurus]: https://gitlab.com/Daniel-KM/Omeka-S-module-Thesaurus
 [datatables]: https://editor.datatables.net
 [module issues]: https://gitlab.com/Daniel-KM/Omeka-S-module-ApiInfo/issues
 [CeCILL v2.1]: https://www.cecill.info/licences/Licence_CeCILL_V2.1-en.html
