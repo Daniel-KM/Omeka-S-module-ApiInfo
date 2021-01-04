@@ -11,10 +11,13 @@ use Laminas\Stdlib\RequestInterface as Request;
 use Omeka\Api\Exception\NotFoundException;
 use Omeka\Api\Representation\SiteRepresentation;
 use Omeka\Mvc\Exception;
+use Omeka\Site\BlockLayout\Manager as BlockLayoutManager;
 use Omeka\View\Model\ApiJsonModel;
 
 class ApiController extends AbstractRestfulController
 {
+    const MAX_RESULTS = 1000;
+
     /**
      * @var AuthenticationService
      */
@@ -24,6 +27,11 @@ class ApiController extends AbstractRestfulController
      * @var EntityManager
      */
     protected $entityManager;
+
+    /**
+     * @var BlockLayoutManager
+     */
+    protected $blockLayoutManager;
 
     /**
      * @var array
@@ -45,15 +53,18 @@ class ApiController extends AbstractRestfulController
     /**
      * @param AuthenticationService $authenticationService
      * @param EntityManager $entityManager
+     * @param BlockLayoutManager $blockLayoutManager
      * @param array $config
      */
     public function __construct(
         AuthenticationService $authenticationService,
         EntityManager $entityManager,
+        BlockLayoutManager $blockLayoutManager,
         array $config
     ) {
         $this->authenticationService = $authenticationService;
         $this->entityManager = $entityManager;
+        $this->blockLayoutManager = $blockLayoutManager;
         $this->config = $config;
     }
 
@@ -139,6 +150,10 @@ class ApiController extends AbstractRestfulController
 
             case 'translations':
                 $result = $this->getTranslations();
+                break;
+
+            case $id === 'mappings' && $this->blockLayoutManager->has('mappingMapQuery'):
+                $result = $this->getMappings();
                 break;
 
             case $id === 'references' && $this->getPluginManager()->has('references'):
@@ -962,6 +977,106 @@ class ApiController extends AbstractRestfulController
         return is_null($translations)
             ? []
             : $translations->getArrayCopy();
+    }
+
+    protected function getMappings()
+    {
+        $query = $this->cleanQuery();
+
+        // To simplify timeline building, use the original block.
+        /** @var \Mapping\Site\BlockLayout\MapQuery $mapQueryBlock */
+        $mapQueryBlock = $this->blockLayoutManager->get('mappingMapQuery');
+
+        // @see \Mapping\Site\BlockLayout\MapQuery::render()
+
+        if (!empty($query['block_id'])) {
+            /** @var \Omeka\Entity\SitePageBlock $block */
+            $block = $this->entityManager->find(\Omeka\Entity\SitePageBlock::class, (int) $query['block_id']);
+            if (!$block) {
+                return [];
+            }
+            $data = $block->getData();
+            parse_str($data['query'], $query);
+            $query = array_merge($query, [
+                'site_id' => $block->getPage()->getSite()->getId(),
+                'has_markers' => true,
+                'limit' => self::MAX_RESULTS,
+            ]);
+        } else {
+            // Search only for items with markers that are in the current site, and
+            // set a reasonable item limit.
+            $query = array_merge($query, [
+                // 'site_id' => $block->getPage()->getSite()->getId(),
+                'has_markers' => true,
+                'limit' => self::MAX_RESULTS,
+            ]);
+            $defaultMapping = [
+                'basemap_provider' => null,
+                'max_zoom' => null,
+                'min_zoom' => null,
+                'bounds' => null,
+                'wms' => [],
+            ];
+            $mapping = !empty($query['mapping']) && is_array($query['mapping'])
+                ? $query['mapping'] + $defaultMapping
+                : $defaultMapping;
+            $defaultTimeline = [
+                'title_headline' => '',
+                'title_text' => '',
+                'fly_to' => null,
+                'show_contemporaneous' => null,
+                'timenav_position' => null,
+                'data_type_properties' => null,
+            ];
+            $timeline = !empty($query['timeline']) && is_array($query['timeline'])
+                ? $query['timeline'] + $defaultTimeline
+                : $defaultTimeline;
+            unset($query['mapping'], $query['timeline']);
+            $data = $mapping + ['timeline' => $timeline];
+        }
+
+        $timelineIsAvailable = $mapQueryBlock->timelineIsAvailable();
+        $isTimeline = $timelineIsAvailable
+            && !empty($data['timeline']['data_type_properties']);
+
+        // Get markers (and events, if applicable) from the attached items.
+        $events = [];
+        $markers = [];
+
+        $api = $this->api();
+        $response = $api->search('items', $query);
+        foreach ($response->getContent() as $item) {
+            if ($isTimeline) {
+                // Set the timeline event for this item.
+                // The method needs the view only to access the api, so the
+                // controller is fine.
+                $event = $mapQueryBlock->getTimelineEvent($item, $query['timeline']['data_type_properties'], $this);
+                if ($event) {
+                    $events[] = $event;
+                }
+            }
+            // Set the map markers for this item.
+            $itemMarkers = $api->search('mapping_markers', ['item_id' => $item->id()])->getContent();
+            $markers = array_merge($markers, $itemMarkers);
+        }
+
+        $mapping = $data;
+        unset($mapping['timeline'], $mapping['query']);
+
+        $result = [
+            'query' => $query,
+            'mapping' => $mapping,
+            'markers' => $markers,
+        ];
+
+        // TODO Support the attachements of the block.
+        if ($isTimeline) {
+            // The php renderer is required in the block, but not used.
+            $result['timeline'] = $mapQueryBlock->getTimelineData($events, $data, new \Laminas\View\Renderer\PhpRenderer);
+            $result['timelineOptions'] = $mapQueryBlock->getTimelineOptions($data);
+        }
+
+        return $result;
     }
 
     protected function getReferences()

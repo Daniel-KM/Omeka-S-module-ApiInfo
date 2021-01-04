@@ -1,4 +1,5 @@
 <?php declare(strict_types=1);
+
 namespace ApiInfo\Service\Controller;
 
 use ApiInfo\Controller\ApiController;
@@ -12,6 +13,7 @@ class ApiControllerFactory implements FactoryInterface
         return new ApiController(
             $services->get('Omeka\AuthenticationService'),
             $services->get('Omeka\EntityManager'),
+            $services->get('Omeka\BlockLayoutManager'),
             $services->get('Config')
         );
     }
