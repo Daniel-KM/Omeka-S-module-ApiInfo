@@ -26,6 +26,9 @@ return [
                         'type' => \Laminas\Router\Http\Segment::class,
                         'options' => [
                             'route' => '/infos[/:id]',
+                            'constraints' => [
+                                'id' => '[a-zA-Z0-9_-]+',
+                            ],
                             'defaults' => [
                                 'controller' => Controller\ApiController::class,
                             ],
