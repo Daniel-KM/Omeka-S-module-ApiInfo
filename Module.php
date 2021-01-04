@@ -63,6 +63,12 @@ class Module extends AbstractModule
         );
 
         $sharedEventManager->attach(
+            \Annotate\Api\Representation\AnnotationRepresentation::class,
+            'rep.resource.json',
+            [$this, 'filterJsonLdAnnotation']
+        );
+
+        $sharedEventManager->attach(
             \Omeka\Api\Adapter\MediaAdapter::class,
             'api.search.query',
             [$this, 'apiSearchQueryMedia']
@@ -300,25 +306,6 @@ class Module extends AbstractModule
         $event->setParam('jsonLd', $jsonLd);
     }
 
-    public function filterJsonLdCollectingForm(Event $event): void
-    {
-        // To add the csrf as an additionnal prompt in the form allows to manage
-        // external offline app more easily.
-        $jsonLd = $event->getParam('jsonLd');
-        $jsonLd['o-module-collecting:prompt'][] = [
-            'o:id' => 'csrf',
-            'o-module-collecting:type' => 'csrf',
-            'o-module-collecting:text' => null,
-            'o-module-collecting:input_type' => 'hidden',
-            'o-module-collecting:select_options' => null,
-            'o-module-collecting:resource_query' => (new \Laminas\Form\Element\Csrf('csrf_' . $jsonLd['o:id']))->getValue(),
-            'o-module-collecting:media_type' => null,
-            'o-module-collecting:required' => false,
-            'o:property' => null,
-        ];
-        $event->setParam('jsonLd', $jsonLd);
-    }
-
     public function filterJsonLdSitePage(Event $event): void
     {
         // TODO Normalize this process to avoid to serve a csrf: it may not be needed for a contact form.
@@ -349,6 +336,49 @@ class Module extends AbstractModule
                     $jsonLd['o-module-api-info:append']['blocks'] = $this->fetchPageHtml($jsonLd, true);
                     break;
             }
+        }
+
+        $event->setParam('jsonLd', $jsonLd);
+    }
+
+    public function filterJsonLdCollectingForm(Event $event): void
+    {
+        // To add the csrf as an additionnal prompt in the form allows to manage
+        // external offline app more easily.
+        $jsonLd = $event->getParam('jsonLd');
+        $jsonLd['o-module-collecting:prompt'][] = [
+            'o:id' => 'csrf',
+            'o-module-collecting:type' => 'csrf',
+            'o-module-collecting:text' => null,
+            'o-module-collecting:input_type' => 'hidden',
+            'o-module-collecting:select_options' => null,
+            'o-module-collecting:resource_query' => (new \Laminas\Form\Element\Csrf('csrf_' . $jsonLd['o:id']))->getValue(),
+            'o-module-collecting:media_type' => null,
+            'o-module-collecting:required' => false,
+            'o:property' => null,
+        ];
+        $event->setParam('jsonLd', $jsonLd);
+    }
+
+    public function filterJsonLdAnnotation(Event $event): void
+    {
+        $services = $this->getServiceLocator();
+        $query = $services->get('Application')->getMvcEvent()->getRequest()->getQuery();
+        $append = $query->get('append');
+        if (!is_array($append)) {
+            $append = [$append];
+        }
+        $appends = array_intersect((array) $append, ['owner_name']);
+        if (empty($appends)) {
+            return;
+        }
+
+        $resource = $event->getTarget();
+        $jsonLd = $event->getParam('jsonLd');
+
+        if (!empty($jsonLd['o:owner'])) {
+            $jsonLd['o:owner'] = json_decode(json_encode($jsonLd['o:owner']), true);
+            $jsonLd['o:owner']['o:name'] = $resource->owner()->name();
         }
 
         $event->setParam('jsonLd', $jsonLd);
