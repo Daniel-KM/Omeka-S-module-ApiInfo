@@ -34,9 +34,9 @@ return [
                     'info' => [
                         'type' => \Laminas\Router\Http\Segment::class,
                         'options' => [
-                            'route' => '/infos[/:id]',
+                            'route' => '/infos[/:resource[/:id]]',
                             'constraints' => [
-                                'id' => '[a-zA-Z0-9_-]+',
+                                'resource' => '[a-zA-Z0-9_-]+',
                             ],
                             'defaults' => [
                                 'controller' => Controller\ApiController::class,

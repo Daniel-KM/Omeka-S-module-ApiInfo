@@ -86,34 +86,69 @@ class ApiController extends AbstractRestfulController
 
     public function get($id)
     {
-        $response = new \Omeka\Api\Response;
+        // Throw exception automatically.
+        $resourceType = $this->params()->fromRoute('resource');
+        $response = $this->api()->read($resourceType, $id);
 
+        $query = $this->cleanQuery(true);
+        $output = $query['output'] ?? 'default';
+
+        if ($this->plugins->has('exportFormatter') && $this->exportFormatter()->has($output)) {
+            $outputOptions = $this->getExportOptions($resourceType);
+            $resource = $response->getContent();
+            /** @see \BulkExport\Mvc\Controller\Plugin\ExportFormatter */
+            return $this
+                ->exportFormatter()
+                ->get($output)
+                ->format($resource, null, $outputOptions)
+                ->getResponse($resourceType);
+        }
+
+        return new ApiJsonModel($response, $this->getViewOptions());
+
+    }
+
+    public function getList()
+    {
+        $response = new \Omeka\Api\Response;
+        $resource = $this->params()->fromRoute('resource');
         $this->cleanQuery = null;
 
-        switch ($id) {
+        switch ($resource) {
             case 'ping':
                 $result = 1;
                 break;
+
             case 'resources':
             case 'items':
             case 'media':
             case 'item_sets':
-            case $id === 'annotations' && $this->hasResource('annotations'):
+            case $resource === 'annotations' && $this->hasResource('annotations'):
                 $query = $this->cleanQuery(true);
                 $output = $query['output'] ?? 'default';
                 switch ($output) {
                     case 'by_itemset':
-                        $result = $this->getByItemSet($id, $query);
+                        $result = $this->getByItemSet($resource, $query);
                         break;
                     case 'datatables':
-                        $result = $this->getDatatables($id, $query);
+                        $result = $this->getDatatables($resource, $query);
                         break;
                     case 'tree':
-                        $result = $this->getTree($id, $query);
+                        $result = $this->getTree($resource, $query);
                         break;
+                    case $this->plugins->has('exportFormatter') && $this->exportFormatter()->has($output):
+                        $outputOptions = $this->getExportOptions($resource);
+                        $resources = $this->api()->search($resource, $query, ['returnScalar' => 'id'])->getContent();
+                        /** @see \BulkExport\Mvc\Controller\Plugin\ExportFormatter */
+                        return $this
+                            ->exportFormatter()
+                            ->get($output)
+                            ->format($resources, null, $outputOptions)
+                            ->getResponse($resource);
+
                     default:
                         $query = $this->cleanQuery(false);
-                        $result = $this->getInfosResources($id === 'resources' ? null : $id, $query);
+                        $result = $this->getInfosResources($resource === 'resources' ? null : $resource, $query);
                         break;
                 }
                 break;
@@ -152,16 +187,23 @@ class ApiController extends AbstractRestfulController
                 $result = $this->getTranslations();
                 break;
 
-            case $id === 'mappings' && $this->blockLayoutManager->has('mappingMapQuery'):
+            case $resource === 'mappings' && $this->blockLayoutManager->has('mappingMapQuery'):
                 $result = $this->getMappings();
                 break;
 
-            case $id === 'references' && $this->getPluginManager()->has('references'):
+            case $resource === 'references' && $this->getPluginManager()->has('references'):
                 $result = $this->getReferences();
                 break;
 
+            case empty($resource):
+                $query = $this->cleanQuery(false);
+                $result = $this->getInfosResources(null, $query);
+                $result['sites'] = $this->getInfosSites();
+                $result['files'] = $this->getInfosFiles();
+                break;
+
             default:
-                $result = $this->getInfosOthers($id);
+                $result = $this->getInfosOthers($resource);
                 // When empty, an empty result is returned instead of a bad
                 // request in order to manage modules resources.
                 break;
@@ -169,17 +211,6 @@ class ApiController extends AbstractRestfulController
 
         $response->setContent($result);
 
-        return new ApiJsonModel($response, $this->getViewOptions());
-    }
-
-    public function getList()
-    {
-        $response = new \Omeka\Api\Response;
-        $query = $this->cleanQuery(false);
-        $list = $this->getInfosResources(null, $query);
-        $list['sites'] = $this->getInfosSites();
-        $list['files'] = $this->getInfosFiles();
-        $response->setContent($list);
         return new ApiJsonModel($response, $this->getViewOptions());
     }
 
@@ -1114,6 +1145,40 @@ class ApiController extends AbstractRestfulController
         return is_null($translations)
             ? []
             : $translations->getArrayCopy();
+    }
+
+    /**
+     * @see \BulkExport\Controller\OutputController::outputAction()
+     */
+    protected function getExportOptions(?string $resourceType = 'resources'): array
+    {
+        $siteId = $query['site_id'] ?? null;
+        try {
+            $site = $this->api()->read('sites', ['id' => $siteId], [], ['responseContent' => 'resource'])->getContent();
+        } catch (\Omeka\Api\Exception\NotFoundException $e) {
+            $site = null;
+        }
+
+        $isSiteRequest = !empty($site);
+        $settings = $isSiteRequest ? $this->siteSettings()->setTargetId($siteId) : $this->settings();
+
+        $resourceLimit = $settings->get('bulkexport_limit') ?: 1000;
+
+        $options = [];
+        $options['site_slug'] = $isSiteRequest ? $site->getSlug() : null;
+        $options['metadata'] = $settings->get('bulkexport_metadata', []);
+        $options['metadata_exclude'] = $settings->get('bulkexport_metadata_exclude', []);
+        $options['format_fields'] = $settings->get('bulkexport_format_fields', 'name');
+        $options['format_generic'] = $settings->get('bulkexport_format_generic', 'string');
+        $options['format_resource'] = $settings->get('bulkexport_format_resource', 'url_title');
+        $options['format_resource_property'] = $settings->get('bulkexport_format_resource_property', 'dcterms:identifier');
+        $options['format_uri'] = $settings->get('bulkexport_format_uri', 'uri_label');
+        $options['template'] = $settings->get('bulkexport_template');
+        $options['is_admin_request'] = !$isSiteRequest;
+        $options['resource_type'] = $resourceType;
+        $options['limit'] = $resourceLimit;
+
+        return $options;
     }
 
     protected function getMappings()
