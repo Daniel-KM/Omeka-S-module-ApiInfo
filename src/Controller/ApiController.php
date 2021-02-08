@@ -1120,6 +1120,8 @@ class ApiController extends AbstractRestfulController
         foreach ($types as $type) {
             try {
                 $result[$type] = $api->search($type, $query, ['returnScalar' => 'id'])->getContent();
+                // Since Omeka 3, the key are returned too as id, that is useless.
+                $result[$type] = array_map('intval', array_values($result[$type]));
             } catch (\Exception $e) {
                 // Avoid to check the modules api keys.
             }
