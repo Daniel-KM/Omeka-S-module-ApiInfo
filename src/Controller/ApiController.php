@@ -1008,6 +1008,16 @@ class ApiController extends AbstractRestfulController
             $data = json_decode(json_encode($page), true);
             foreach ($data['o:block'] as $key => $block) {
                 switch ($block['o:layout']) {
+                    case 'assets':
+                        // Fix relative urls.
+                        $siteBaseUrl = '/s/' . $site->slug() . '/page/';
+                        foreach ($block['o:data']['assets'] as $k => $asset) {
+                            if (!empty($asset['url']) && mb_substr($asset['url'], 0, 1) !== '/') {
+                                $data['o:block'][$key]['o:data']['assets'][$k]['url'] = $siteBaseUrl . $asset['url'];
+                            }
+                        }
+                        break;
+
                     // Display the collecting forms directly in the site pages.
                     case 'collecting':
                         // Fix issue when there is no form.
