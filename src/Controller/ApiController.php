@@ -1164,6 +1164,7 @@ class ApiController extends AbstractRestfulController
      */
     protected function getExportOptions(?string $resourceType = 'resources'): array
     {
+        $query = $this->cleanQuery(true);
         $siteId = $query['site_id'] ?? null;
         try {
             $site = $this->api()->read('sites', ['id' => $siteId], [], ['responseContent' => 'resource'])->getContent();
