@@ -1301,18 +1301,41 @@ class ApiController extends AbstractRestfulController
         // Field may be an array.
         // Empty string field means meta results.
         $field = @$query['field'] ?: [];
+        unset($query['field']);
         $fields = is_array($field) ? $field : [$field];
         $fields = array_unique($fields);
 
-        // Either "field" or "text" is required.
-        if (empty($fields)) {
+        if (array_key_exists('option', $query)) {
+            $options = is_array($query['option']) ? $query['option'] : [];
+            unset($query['option']);
+        } else {
+            $options = [];
+        }
+
+        // Text is full text, but full text doesn't work via api.
+        if (array_key_exists('text', $query) && strlen($query['text'])) {
+            $query = [
+                'property' => [[
+                    'joiner' => 'and',
+                    'property' => '',
+                    'type' => 'in',
+                    'text' => $query['text'],
+                ]]
+            ];
+        } else {
+            unset($query['text']);
+            unset($query['per_page']);
+            unset($query['page']);
+            unset($query['sort_by']);
+            unset($query['sort_order']);
+            unset($query['offset']);
+            unset($query['limit']);
+        }
+
+        // Either "field" or a query or "text" is required for now.
+        if (empty($fields) && empty($query)) {
             return [];
         }
-        unset($query['field']);
-
-        $options = $query;
-        $query = @$options['query'] ?: [];
-        unset($options['query']);
 
         return $this->references($fields, $query, $options)->list();
     }
