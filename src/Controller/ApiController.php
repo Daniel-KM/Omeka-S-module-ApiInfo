@@ -187,6 +187,10 @@ class ApiController extends AbstractRestfulController
                 $result = $this->getTranslations();
                 break;
 
+            case $resource === 'coins' && $this->viewHelpers()->has('coins'):
+                $result = $this->getCoins();
+                break;
+
             case $resource === 'mappings' && $this->blockLayoutManager->has('mappingMapQuery'):
                 $result = $this->getMappings();
                 break;
@@ -1192,6 +1196,20 @@ class ApiController extends AbstractRestfulController
         $options['limit'] = $resourceLimit;
 
         return $options;
+    }
+
+    protected function getCoins()
+    {
+        $query = $this->cleanQuery();
+
+        $result = [];
+        $coins = $this->viewHelpers()->get('coins');
+        $response = $this->api()->search('items', $query);
+        foreach ($response->getContent() as $resource) {
+            $result[$resource->id()] = $coins($resource);
+        }
+
+        return $result;
     }
 
     protected function getMappings()
