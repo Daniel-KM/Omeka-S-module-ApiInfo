@@ -81,7 +81,9 @@ Available infos:
 - `/api/infos/user`: metadata of the current user (experimental)
 - `/api/infos/translations?locale=fr`: all translations for the specified
   language (experimental)
-- `/api/infos/mappings?` (requires module [Mapping]): all mappings for any item 
+- `/api/infos/coins` (requires module [Coins]): Allows to get the COinS for the
+  items specified with a standard query.
+- `/api/infos/mappings` (requires module [Mapping]): all mappings for any item
   query. If `block_id` is set, the params and query from the block will be used.
 - `/api/infos/references` (requires module [Reference]): Allows to get totals or
   all references for properties. To get them, use a standard query and append
@@ -205,6 +207,7 @@ Copyright
 [Api Info]: https://gitlab.com/Daniel-KM/Omeka-S-module-ApiInfo
 [Omeka S]: https://www.omeka.org/s
 [ApiInfo.zip]: https://gitlab.com/Daniel-KM/Omeka-S-module-ApiInfo/releases
+[Coins]: https://gitlab.com/Daniel-KM/Omeka-S-module-Coins
 [Mapping]: https://gitlab.com/omeka-s-modules/Mapping
 [Reference]: https://gitlab.com/Daniel-KM/Omeka-S-module-Reference
 [Thesaurus]: https://gitlab.com/Daniel-KM/Omeka-S-module-Thesaurus
