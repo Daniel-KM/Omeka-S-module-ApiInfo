@@ -1177,7 +1177,12 @@ class ApiController extends AbstractRestfulController
         }
 
         $isSiteRequest = !empty($site);
-        $settings = $isSiteRequest ? $this->siteSettings()->setTargetId($siteId) : $this->settings();
+        if ($isSiteRequest) {
+            $settings = $this->siteSettings();
+            $settings->setTargetId($siteId);
+        } else {
+            $settings = $this->settings();
+        }
 
         $resourceLimit = $settings->get('bulkexport_limit') ?: 1000;
 
