@@ -759,11 +759,14 @@ class ApiController extends AbstractRestfulController
             );
         }
 
+        $api = $this->api();
+
         $termTitle = $query['tree_title'] ?? null;
         $termName = $query['tree_name'] ?? null;
         $termParent = $query['tree_parent'] ?? null;
         $termChild = $query['tree_child'] ?? 'dcterms:hasPart';
         $termBase = $query['tree_base'] ?? $termChild;
+        $withMedia = !empty($query['with_media']);
 
         if ($termTitle === 'o:title') {
             $termTitle = null;
@@ -778,7 +781,7 @@ class ApiController extends AbstractRestfulController
         } else {
             $termParent = 'dcterms:isPartOf';
         }
-        $roots = $this->api()->search($resource, $query)->getContent();
+        $roots = $api->search($resource, $query)->getContent();
         if (empty($roots)) {
             return [];
         }
@@ -817,8 +820,12 @@ class ApiController extends AbstractRestfulController
                 'title' => $title,
                 'children' => $baseResources($root),
             ];
+            if ($withMedia) {
+                $tree['medias'] = $api->search('media', ['item_id' => $root], ['initialize' => false, 'returnScalar' => 'id'])->getContent();
+                $tree['medias'] = array_map('intval', array_values($tree['medias']));
+            }
         } elseif (!empty($query['item_set_id'])
-            && $itemSet = $this->api()->searchOne('item_sets', ['id' => $query['item_set_id']])->getContent()
+            && $itemSet = $api->searchOne('item_sets', ['id' => $query['item_set_id']])->getContent()
         ) {
             [$title, $name] = $titleAndName($itemSet);
             $tree = [
@@ -836,9 +843,9 @@ class ApiController extends AbstractRestfulController
             ];
         }
 
-        $maxLevel = 200;
+        $maxLevel = 100;
         $buildTree = null;
-        $buildTree = function (array $branchs, array &$listIds, $parentId = null, $level = 0) use ($maxLevel, $titleAndName, $childrenResources, &$buildTree): array {
+        $buildTree = function (array $branchs, array &$listIds, $parentId = null, $level = 0) use ($maxLevel, $titleAndName, $childrenResources, $withMedia, $api, &$buildTree): array {
             if ($level > $maxLevel) {
                 return [];
             }
@@ -850,12 +857,17 @@ class ApiController extends AbstractRestfulController
                 }
                 $listIds[] = $id;
                 [$title, $name] = $titleAndName($branch);
-                $subtree[] = [
-                    'id' => $branch->id(),
+                $newSubTree = [
+                    'id' => $id,
                     'name' => $name ?: $title,
                     'title' => $title,
                     'children' => $buildTree($childrenResources($branch), $listIds, $id, $level + 1),
                 ];
+                if ($withMedia) {
+                    $newSubTree['medias'] = $api->search('media', ['item_id' => $id], ['initialize' => false, 'returnScalar' => 'id'])->getContent();
+                    $newSubTree['medias'] = array_map('intval', array_values($newSubTree['medias']));
+                }
+                $subtree[] = $newSubTree;
             }
             return $subtree;
         };
