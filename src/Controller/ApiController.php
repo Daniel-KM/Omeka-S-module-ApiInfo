@@ -111,7 +111,7 @@ class ApiController extends AbstractRestfulController
     public function getList()
     {
         $response = new \Omeka\Api\Response;
-        $resource = $this->params()->fromRoute('resource');
+        $resource = $this->params()->fromRoute('resource', '');
         $this->cleanQuery = null;
 
         switch ($resource) {
@@ -207,10 +207,18 @@ class ApiController extends AbstractRestfulController
                 break;
 
             default:
+                // Other infos are managed via trigger "api.infos.resources".
                 $result = $this->getInfosOthers($resource);
                 // When empty, an empty result is returned instead of a bad
                 // request in order to manage modules resources.
+                // Furthermore, the resource name is "infos" for zip (security).
+                $resource = 'infos';
                 break;
+        }
+
+        if (!empty($this->cleanQuery['zip'])) {
+            $this->zip($resource, $result);
+            die();
         }
 
         $response->setContent($result);
@@ -1389,5 +1397,22 @@ class ApiController extends AbstractRestfulController
     protected function hasResource($resourceName)
     {
         return (bool) @$this->getConfig()['api_adapters']['invokables'][$resourceName];
+    }
+
+    protected function zip(string $resource, $result)
+    {
+        require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
+
+        $basename = $resource;
+
+        $options = new \ZipStream\Option\Archive();
+        $options->setSendHttpHeaders(true);
+
+        $zip = new \ZipStream\ZipStream("$basename.zip", $options);
+
+        $content = json_encode($result, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $zip->addFile("$basename.json", $content);
+
+        $zip->finish();
     }
 }
