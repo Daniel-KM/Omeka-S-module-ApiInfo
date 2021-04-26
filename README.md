@@ -87,28 +87,13 @@ Available infos:
   query. If `block_id` is set, the params and query from the block will be used.
 - `/api/infos/references` (requires module [Reference]): Allows to get totals or
   all references for properties. To get them, use a standard query and append
-  `option` and `field`, if needed. For example:
+  `option` and `metadata`, if needed. For example:
   `/api/infos/references?property[0][property]=dcterms:title&property[0][type]=in&property[0][text]=my-text&option[filters][languages]=fra`
   allows to get all totals for the specified text for each property.
-  The query from the url can be simplified with `text=my-text` in most of the
-  cases, so the references are filtered by this text in any property.
-  If one or multiple fields are specified, the references are returned for these
-  fields. The fields can be a comma separated list of an array, for example:
-  `/api/infos/references?text=example&field=dcterms:subject`
-  allows to get all references for the specified text in the specified field.
-  `text` and `option` can be used the same than above.
-  All  options of module Reference  are available: `sort_by` (`total` or `alphabetic`),
-  `sort_order` (`asc` or `desc`), `per_page`, `page`, `resource_type`.
-  Warning: don't mix the query options and the options themselves, for example
-  `per_page`, `page`, `sort_by` or `sort_order`.
-  The field can be a property term, or `o:item_set`, `o:resource_class`,
-  and `o:resource_template` too.
-  To get the facets for the search result page, you can use this query:
-  `text=xxx&site_id=1&option[resource_name]=items&option[sort_by]=total&option[sort_order]=desc&option[filters][languages][]=fra&option[filters][languages][]=&option[filters][languages]=&option[lang]=1&field[]=dcterms:subject`
-  Note: if you use the filters for the language, it may be needed to add an
-  empty language `&option[filters][languages][]=` or, for string format, `&option[filters][languages]=fra,`
-  because many metadata have no language (date, names, etc.).
+  If you add `&metadata[]=dcterms:subject`, you will have the list of subjects
+  for the query. For more info about argueents, see [Reference].
 
+**Important**:
 The response is for all sites by default. Add argument `site_id={##}` or `site_slug={slug}`
 to get data for a site. The response supports the api keys, so rights are checked.
 
@@ -128,7 +113,8 @@ Other available infos:
   be used too: `locale=fr`.
 - filter for media: `has_original=1`, `has_thumbnails=1`
 - list of files (urls) directly from the item data: append the arg `append=urls`.
-- list of sites (ids) directly from the item data: append the arg `append=sites`.
+- list of sites (ids) directly from the item data: append the arg `append=sites`
+  (deprecated since version Omeka 3.0, because available in standard api).
 - list of files and sites (ids) directly from the item data: append the arg `append[]=urls&append[]=sites`.
 - html of page content and html of blocks for site pages: append the arg `append[]=html&append[]=blocks`.
 

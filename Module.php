@@ -138,6 +138,7 @@ class Module extends AbstractModule
                         $toAppend['o:media'][] = $urls;
                     }
                     break;
+                /** @deprecated Since Omeka v3, sites are listed in items (but still needed for item sets). */
                 case 'sites':
                     if ($resource->resourceName() !== 'items') {
                         break;
