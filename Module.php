@@ -119,6 +119,7 @@ class Module extends AbstractModule
                         $jsonLd['o:owner']['o:name'] = $resource->owner()->name();
                     }
                     break;
+
                 case 'urls':
                     // TODO Move to default key as owner.
                     if ($thumbnail = $resource->thumbnail()) {
@@ -138,6 +139,7 @@ class Module extends AbstractModule
                         $toAppend['o:media'][] = $urls;
                     }
                     break;
+
                 /** @deprecated Since Omeka v3, sites are listed in items (but still needed for item sets). */
                 case 'sites':
                     if ($resource->resourceName() !== 'items') {
@@ -154,14 +156,15 @@ class Module extends AbstractModule
                         }
                     }
                     break;
+
                 case 'objects':
                     // @see \Omeka\Api\Representation\AbstractResourceEntityRepresentation::objectValues()
                     foreach ($resource->values() as $term => $propertyData) {
                         foreach ($propertyData['values'] as $value) {
-                            if (strtok($value->type(), ':') !== 'resource') {
+                            $v = $value->valueResource();
+                            if (!$v) {
                                 continue;
                             }
-                            $v = $value->valueResource();
                             $resourceClass = $v->resourceClass();
                             $resourceTemplate = $v->resourceTemplate();
                             $r = [
@@ -186,6 +189,7 @@ class Module extends AbstractModule
                         }
                     }
                     break;
+
                 case 'subjects':
                     // @see \Omeka\Api\Representation\AbstractResourceEntityRepresentation::subjectValues()
                     foreach ($resource->subjectValues() as $term => $values) {
@@ -215,32 +219,38 @@ class Module extends AbstractModule
                         }
                     }
                     break;
+
                 case 'object_ids':
                     // @see \Omeka\Api\Representation\AbstractResourceEntityRepresentation::objectValues()
                     // Don't add duplicate.
+                    $ids = [];
                     foreach ($this->values() as $property) {
                         foreach ($property['values'] as $value) {
-                            if (strtok($value->type(), ':') === 'resource') {
-                                $toAppend['object_ids'][$value->valueResource()->id()] = null;
+                            $v = $value->resource();
+                            if ($v) {
+                                $ids[$v->id()] = null;
                             }
                         }
                     }
-                    if (isset($toAppend['object_ids'])) {
-                        $toAppend['object_ids'] = array_keys($toAppend['object_ids']);
+                    if (count($ids)) {
+                        $toAppend['object_ids'] = array_keys($ids);
                     }
                     break;
+
                 case 'subject_ids':
                     // @see \Omeka\Api\Representation\AbstractResourceEntityRepresentation::subjectValues()
                     // Don't add duplicate.
+                    $ids = [];
                     foreach ($resource->subjectValues() as $values) {
                         foreach ($values as $value) {
-                            $toAppend['subject_ids'][$value->valueResource()->id()] = null;
+                            $ids[$value->valueResource()->id()] = null;
                         }
                     }
-                    if (isset($toAppend['subbject_ids'])) {
-                        $toAppend['subject_ids'] = array_keys($toAppend['subject_ids']);
+                    if (count($ids)) {
+                        $toAppend['subject_ids'] = array_keys($ids);
                     }
                     break;
+
                 default:
                     break;
             }
