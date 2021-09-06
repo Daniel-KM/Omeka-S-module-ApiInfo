@@ -1141,11 +1141,29 @@ class ApiController extends AbstractRestfulController
         $query = $this->cleanQuery(false);
         $api = $this->api();
 
+        $rank = $query['rank'] ?? null;
+        $prevnext = $query['prevnext'] ?? null;
+
         foreach ($types as $type) {
             try {
                 $result[$type] = $api->search($type, $query, ['returnScalar' => 'id'])->getContent();
-                // Since Omeka 3, the key are returned too as id, that is useless.
+                // Since Omeka 3, the keys are returned too as id, that is useless.
                 $result[$type] = array_map('intval', array_values($result[$type]));
+                if ($rank) {
+                    $rankResource = array_search((int) $rank, $result[$type], true);
+                    $result[$type] = $rankResource === false
+                        ? []
+                        : array_slice($result[$type], $rankResource, 1, true);
+                } elseif ($prevnext) {
+                    $rankResource = array_search((int) $prevnext, $result[$type], true);
+                    if ($rankResource === false) {
+                        $result[$type] = [];
+                    } else {
+                        $result[$type] = $rankResource === 0
+                            ? array_slice($result[$type], $rankResource, 2, true)
+                            : array_slice($result[$type], $rankResource - 1, 3, true);
+                    }
+                }
             } catch (\Exception $e) {
                 // Avoid to check the modules api keys.
             }

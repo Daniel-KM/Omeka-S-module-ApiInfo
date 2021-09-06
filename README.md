@@ -51,7 +51,15 @@ Available infos:
 - `/api/infos/site_data`: list of sites with full data (experimental)
 - `/api/infos/settings`: list of main settings (experimental)
 - `/api/infos/site_settings`: list of site settings (experimental)
-- `/api/infos/ids?types[]=items`: list of all ids of specified types
+- `/api/infos/ids?types[]=items`: list of all ids of specified types. A standard
+  query can be used to limit output. Two specific query parameters are available:
+  - `rank=xxx`, where `xxx` is the resource id, allows to get only the specified
+  resource with the rank as key.
+  - `prevnext=xxx`, where `xxx` is the resource id, allows to get the previous
+  resource id, if any, the current one (the one that is requested), and the next
+  one, if any.
+  Of course, rank and previous/next values have meaning only for one resource
+  type, so it is useless to ask multiple types.
 - `/api/infos/items?output=xxx`: formatted output for `datatables`, `by_itemset`
   or `tree`
   - datatables: [datatables] is a js library to display data as a paginated and
