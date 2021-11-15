@@ -1,4 +1,5 @@
 <?php declare(strict_types=1);
+
 namespace ApiInfo\Mvc\Controller\Plugin;
 
 use Doctrine\DBAL\Connection;
@@ -54,7 +55,7 @@ class SiteSettingsList extends AbstractPlugin
                 'theme_ids' => 'theme_settings_%',
                 'theme_id' => $themeKey,
             ])
-            ->fetchAll(\PDO::FETCH_KEY_PAIR);
+            ->fetchAllKeyValue();
 
         $result = array_map(function ($v) {
             return json_decode($v, true);

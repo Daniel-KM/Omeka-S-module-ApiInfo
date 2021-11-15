@@ -1,4 +1,5 @@
 <?php declare(strict_types=1);
+
 namespace ApiInfo\Service\ControllerPlugin;
 
 use ApiInfo\Mvc\Controller\Plugin\SettingsList;
@@ -26,7 +27,10 @@ class SettingsListFactory implements FactoryInterface
         $qb = $entityManager->createQueryBuilder();
         $expr = $qb->expr();
         $qb
-            ->select(['setting.id', 'setting.value'])
+            ->select(
+                'setting.id',
+                'setting.value'
+            )
             ->from('setting', 'setting')
             // TODO How to do a "WHERE IN" with doctrine and array of strings (without quoting them manually)?
             // ->where($expr->in('setting.id', ':whitelist'))

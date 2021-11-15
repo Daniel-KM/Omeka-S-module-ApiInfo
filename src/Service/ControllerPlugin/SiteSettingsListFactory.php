@@ -1,4 +1,5 @@
 <?php declare(strict_types=1);
+
 namespace ApiInfo\Service\ControllerPlugin;
 
 use ApiInfo\Mvc\Controller\Plugin\SiteSettingsList;
@@ -15,7 +16,10 @@ class SiteSettingsListFactory implements FactoryInterface
         $qb = $entityManager->createQueryBuilder();
         $expr = $qb->expr();
         $qb
-            ->select(['setting.id', 'setting.value'])
+            ->select(
+                'setting.id',
+                'setting.value'
+            )
             ->from('site_setting', 'setting')
             ->where($expr->eq('setting.site_id', ':site_id'))
             // Manage the special case for theme settings: returns only the

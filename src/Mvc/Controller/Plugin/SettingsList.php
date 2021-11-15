@@ -1,4 +1,5 @@
 <?php declare(strict_types=1);
+
 namespace ApiInfo\Mvc\Controller\Plugin;
 
 use Doctrine\DBAL\Connection;
@@ -36,7 +37,7 @@ class SettingsList extends AbstractPlugin
     {
         $result = $this->connection
             ->executeQuery($this->qb)
-            ->fetchAll(\PDO::FETCH_KEY_PAIR);
+            ->fetchAllKeyValue();
 
         return array_map(function ($v) {
             return json_decode($v, true);

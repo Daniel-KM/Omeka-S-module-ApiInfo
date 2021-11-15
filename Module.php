@@ -562,20 +562,19 @@ class Module extends AbstractModule
         $connection = $this->getServiceLocator()->get('Omeka\Connection');
         $qb = $connection->createQueryBuilder();
         $qb
-            ->select([
+            ->select(
                 'DISTINCT property.id AS id',
                 'CONCAT(vocabulary.prefix, ":", property.local_name) AS term',
                 'property.label AS label',
-                'property.comment AS comment',
-            ])
+                'property.comment AS comment'
+            )
             ->from('property', 'property')
             ->innerJoin('property', 'vocabulary', 'vocabulary', 'property.vocabulary_id = vocabulary.id')
             ->orderBy('vocabulary.id', 'asc')
             ->addOrderBy('property.id', 'asc')
             ->addGroupBy('property.id')
         ;
-        $stmt = $connection->executeQuery($qb);
-        $properties = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $properties = $connection->executeQuery($qb)->fetchAllAssociative();
         $properties = array_combine(array_column($properties, 'id'), $properties);
         return $properties;
     }
