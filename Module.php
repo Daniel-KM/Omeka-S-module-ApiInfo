@@ -120,6 +120,7 @@ class Module extends AbstractModule
                     }
                     break;
 
+                // Urls is useless since version 3.
                 case 'urls':
                     // TODO Move to default key as owner.
                     if ($thumbnail = $resource->thumbnail()) {
