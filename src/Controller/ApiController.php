@@ -648,7 +648,7 @@ class ApiController extends AbstractRestfulController
                             }
                         }
                     } else {
-                        $v = $res->value($field);
+                        $v = $res->value($field, ['all' => true]);
                         if ($v) {
                             $resData[$field] = json_decode(json_encode($v), true);
                         }
