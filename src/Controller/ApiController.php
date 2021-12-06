@@ -806,17 +806,21 @@ class ApiController extends AbstractRestfulController
         };
 
         $baseResources = function (AbstractResourceEntityRepresentation $resource) use ($termBase): array {
-            $values = $resource->value($termBase, ['all' => true, 'type' => ['resource', 'resource:item', 'resource:itemset', 'resource:media', 'resource:annotation']]);
-            return array_map(function ($v) {
+            // It's not possible to get all related resources from the type,
+            // because any type can have a resource, in particular custom vocab.
+            // $values = $resource->value($termBase, ['all' => true, 'type' => ['resource', 'resource:item', 'resource:itemset', 'resource:media', 'resource:annotation']]);
+            $values = $resource->value($termBase, ['all' => true]);
+            return array_filter(array_map(function ($v) {
                 return $v->valueResource();
-            }, $values);
+            }, $values));
         };
 
         $childrenResources = function (AbstractResourceEntityRepresentation $resource) use ($termChild): array {
-            $values = $resource->value($termChild, ['all' => true, 'type' => ['resource', 'resource:item', 'resource:itemset', 'resource:media', 'resource:annotation']]);
-            return array_map(function ($v) {
+            // Same remark.
+            $values = $resource->value($termChild, ['all' => true]);
+            return array_filter(array_map(function ($v) {
                 return $v->valueResource();
-            }, $values);
+            }, $values));
         };
 
         if (count($roots) === 1) {
