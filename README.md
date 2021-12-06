@@ -98,7 +98,7 @@ Available infos:
   `option` and `metadata`, if needed. For example:
   `/api/infos/references?property[0][property]=dcterms:title&property[0][type]=in&property[0][text]=my-text&option[filters][languages]=fra`
   allows to get all totals for the specified text for each property.
-  If you add `&metadata[]=dcterms:subject`, you will have the list of subjects
+  If you add `&metadata[subjects]=dcterms:subject`, you will have the list of subjects
   for the query. For more info about argueents, see [Reference].
 
 **Important**:
@@ -109,7 +109,7 @@ Specific data can be added via a listener on `api.infos.resources`.
 
 **Notes**
 - the infos are available only through the api controller. To get them via `api()`,
-  use à standard api search and use `getTotalResults()` on the response.
+  use a standard api search and use `getTotalResults()` on the response.
 - For media inside a site, the search query should use `items_site_id`, since
   the argument `site_id` has another meaning currently inside the core.
 - For  files, use a standard media query with `has_original=1`, `has_thumbnails=1`
