@@ -567,7 +567,11 @@ class Module extends AbstractModule
                 'DISTINCT property.id AS id',
                 'CONCAT(vocabulary.prefix, ":", property.local_name) AS term',
                 'property.label AS label',
-                'property.comment AS comment'
+                'property.comment AS comment',
+                // Only the previous selects are needed, but some databases
+                // require "order by" or "group by" value to be in the select,
+                // in particular to fix the "only_full_group_by" issue.
+                'vocabulary.id AS vocabId'
             )
             ->from('property', 'property')
             ->innerJoin('property', 'vocabulary', 'vocabulary', 'property.vocabulary_id = vocabulary.id')
