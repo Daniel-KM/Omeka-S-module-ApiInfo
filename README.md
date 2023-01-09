@@ -195,7 +195,7 @@ altered, and that no provisions are either added or removed herefrom.
 Copyright
 ---------
 
-* Copyright Daniel Berthereau, 2019-2021 (see [Daniel-KM] on GitLab)
+* Copyright Daniel Berthereau, 2019-2023 (see [Daniel-KM] on GitLab)
 
 
 [Api Info]: https://gitlab.com/Daniel-KM/Omeka-S-module-ApiInfo

@@ -571,7 +571,7 @@ class Module extends AbstractModule
                 // Only the previous selects are needed, but some databases
                 // require "order by" or "group by" value to be in the select,
                 // in particular to fix the "only_full_group_by" issue.
-                'vocabulary.id AS vocabId'
+                'vocabulary.id'
             )
             ->from('property', 'property')
             ->innerJoin('property', 'vocabulary', 'vocabulary', 'property.vocabulary_id = vocabulary.id')
