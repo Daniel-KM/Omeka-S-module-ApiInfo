@@ -60,8 +60,8 @@ Available infos:
   one, if any.
   Of course, rank and previous/next values have meaning only for one resource
   type, so it is useless to ask multiple types.
-- `/api/infos/items?output=xxx`: formatted output for `datatables`, `by_itemset`
-  or `tree`
+- `/api/infos/items?output=xxx`: formatted output for `datatables`, `by_itemset`,
+`tree` and any format supported by module [Bulk Export].
   - datatables: [datatables] is a js library to display data as a paginated and
     searchable table.
   - For tree, two modes are available. Either the query return the root id(s),
@@ -205,6 +205,7 @@ Copyright
 [Mapping]: https://gitlab.com/omeka-s-modules/Mapping
 [Reference]: https://gitlab.com/Daniel-KM/Omeka-S-module-Reference
 [Thesaurus]: https://gitlab.com/Daniel-KM/Omeka-S-module-Thesaurus
+[Bulk Export]: https://gitlab.com/Daniel-KM/Omeka-S-module-BulkExport
 [datatables]: https://editor.datatables.net
 [module issues]: https://gitlab.com/Daniel-KM/Omeka-S-module-ApiInfo/issues
 [CeCILL v2.1]: https://www.cecill.info/licences/Licence_CeCILL_V2.1-en.html
