@@ -8,6 +8,7 @@ use Laminas\Http\Response;
 use Laminas\Mvc\Controller\AbstractRestfulController;
 use Laminas\Mvc\MvcEvent;
 use Laminas\Stdlib\RequestInterface as Request;
+use Laminas\View\Model\JsonModel;
 use Omeka\Api\Exception\NotFoundException;
 use Omeka\Api\Representation\AbstractResourceEntityRepresentation;
 use Omeka\Api\Representation\SiteRepresentation;
@@ -101,11 +102,10 @@ class ApiController extends AbstractRestfulController
                 ->exportFormatter()
                 ->get($output)
                 ->format($resource, null, $outputOptions)
-                ->getResponse($resourceType);
+                ->getResponse();
         }
 
         return new ApiJsonModel($response, $this->getViewOptions());
-
     }
 
     public function getList()
@@ -144,7 +144,7 @@ class ApiController extends AbstractRestfulController
                             ->exportFormatter()
                             ->get($output)
                             ->format($resources, null, $outputOptions)
-                            ->getResponse($resource);
+                            ->getResponse();
 
                     default:
                         $query = $this->cleanQuery(false);
@@ -449,18 +449,26 @@ class ApiController extends AbstractRestfulController
         );
     }
 
+    /**
+     * Return error with message.
+     *
+     * Unlike Omeka, return error as json and don't throw exception.
+     *
+     * @see https://github.com/omniti-labs/jsend#jsend
+     */
     protected function returnError($message, $statusCode = Response::STATUS_CODE_400, array $errors = null)
     {
         $response = $this->getResponse();
         $response->setStatusCode($statusCode);
         $result = [
-            'status' => $statusCode,
+            'status' => 'error',
             'message' => $message,
+            'code' => $statusCode,
         ];
-        if (is_array($errors)) {
-            $result['errors'] = $errors;
+        if ($errors) {
+            $result['data'] = $errors;
         }
-        return new ApiJsonModel($result, $this->getViewOptions());
+        return new JsonModel($result);
     }
 
     protected function getInfosResources($resource = null, array $query = []): array
@@ -1208,7 +1216,7 @@ class ApiController extends AbstractRestfulController
     /**
      * @see \BulkExport\Controller\OutputController::outputAction()
      */
-    protected function getExportOptions(?string $resourceType = 'resources'): array
+    protected function getExportOptions(?string $resourceName = 'resources'): array
     {
         $query = $this->cleanQuery(true);
         $siteId = $query['site_id'] ?? null;
@@ -1226,10 +1234,10 @@ class ApiController extends AbstractRestfulController
             $settings = $this->settings();
         }
 
-        $resourceLimit = $settings->get('bulkexport_limit') ?: 1000;
+        $resourceLimit = $settings->get('bulkexport_limit') ?: \Omeka\Stdlib\Paginator::PER_PAGE;
 
         $options = [];
-        $options['site_slug'] = $isSiteRequest ? $site->getSlug() : null;
+        $options['site_slug'] = $isSiteRequest ? $this->params('site-slug') : null;
         $options['metadata'] = $settings->get('bulkexport_metadata', []);
         $options['metadata_exclude'] = $settings->get('bulkexport_metadata_exclude', []);
         $options['format_fields'] = $settings->get('bulkexport_format_fields', 'name');
@@ -1237,9 +1245,10 @@ class ApiController extends AbstractRestfulController
         $options['format_resource'] = $settings->get('bulkexport_format_resource', 'url_title');
         $options['format_resource_property'] = $settings->get('bulkexport_format_resource_property', 'dcterms:identifier');
         $options['format_uri'] = $settings->get('bulkexport_format_uri', 'uri_label');
+        $options['language'] = $settings->get('bulkexport_language', '');
         $options['template'] = $settings->get('bulkexport_template');
-        $options['is_admin_request'] = !$isSiteRequest;
-        $options['resource_type'] = $resourceType;
+        $options['is_site_request'] = $isSiteRequest;
+        $options['resource_type'] = $resourceName;
         $options['limit'] = $resourceLimit;
 
         return $options;
