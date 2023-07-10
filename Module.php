@@ -159,7 +159,7 @@ class Module extends AbstractModule
                     break;
 
                 case 'objects':
-                    // @see \Omeka\Api\Representation\AbstractResourceEntityRepresentation::objectValues()
+                    /** @see \Omeka\Api\Representation\AbstractResourceEntityRepresentation::objectValues() */
                     foreach ($resource->values() as $term => $propertyData) {
                         foreach ($propertyData['values'] as $value) {
                             $v = $value->valueResource();
@@ -192,10 +192,10 @@ class Module extends AbstractModule
                     break;
 
                 case 'subjects':
-                    // @see \Omeka\Api\Representation\AbstractResourceEntityRepresentation::subjectValues()
+                    /** @see \Omeka\Api\Representation\AbstractResourceEntityRepresentation::subjectValues() */
                     foreach ($resource->subjectValues() as $term => $values) {
                         foreach ($values as $value) {
-                            $v = $value->resource();
+                            $v = $value['val']->resource();
                             $resourceClass = $v->resourceClass();
                             $resourceTemplate = $v->resourceTemplate();
                             $r = [
@@ -222,7 +222,7 @@ class Module extends AbstractModule
                     break;
 
                 case 'object_ids':
-                    // @see \Omeka\Api\Representation\AbstractResourceEntityRepresentation::objectValues()
+                    /** @see \Omeka\Api\Representation\AbstractResourceEntityRepresentation::objectValues() */
                     // Don't add duplicate.
                     $ids = [];
                     foreach ($this->values() as $property) {
@@ -239,12 +239,12 @@ class Module extends AbstractModule
                     break;
 
                 case 'subject_ids':
-                    // @see \Omeka\Api\Representation\AbstractResourceEntityRepresentation::subjectValues()
+                    /** @see \Omeka\Api\Representation\AbstractResourceEntityRepresentation::subjectValues() */
                     // Don't add duplicate.
                     $ids = [];
                     foreach ($resource->subjectValues() as $values) {
                         foreach ($values as $value) {
-                            $ids[$value->valueResource()->id()] = null;
+                            $ids[$value['val']->valueResource()->id()] = null;
                         }
                     }
                     if (count($ids)) {
