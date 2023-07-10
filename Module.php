@@ -564,15 +564,16 @@ class Module extends AbstractModule
         $qb = $connection->createQueryBuilder();
         $qb
             ->select(
-                'DISTINCT property.id AS id',
+                'property.id AS id',
                 'CONCAT(vocabulary.prefix, ":", property.local_name) AS term',
                 'property.label AS label',
                 'property.comment AS comment',
                 // Only the previous selects are needed, but some databases
                 // require "order by" or "group by" value to be in the select,
                 // in particular to fix the "only_full_group_by" issue.
-                'vocabulary.id'
+                'vocabulary.id AS vocabulary_id'
             )
+            ->distinct()
             ->from('property', 'property')
             ->innerJoin('property', 'vocabulary', 'vocabulary', 'property.vocabulary_id = vocabulary.id')
             ->orderBy('vocabulary.id', 'asc')
