@@ -1,8 +1,10 @@
 {
     "require": {
         "php": ">=7.4",
-        "maennchen/zipstream-php": "^2.2",
-        "myclabs/php-enum": "1.7.7"
+        "maennchen/zipstream-php": "^2.2"
+    },
+    "replace": {
+        "psr/http-message": "*"
     },
     "replace": {
         "symfony/polyfill-mbstring": "*"
