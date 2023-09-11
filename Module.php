@@ -505,8 +505,42 @@ class Module extends AbstractModule
         // Need to set the site for site settings.
         $siteSettings = $services->get('Omeka\Settings\Site');
         $siteSettings->setTargetId($site->id());
-        // TODO Add theme?
+
+        // Enable the theme in the view stack to allow to use specific template.
         $services->get('ControllerPluginManager')->get('currentSite')->setSite($site);
+
+        /**
+         * @see \Omeka\Mvc\MvcListeners::preparePublicSite()
+         * @var \Omeka\Site\Theme\Manager $themeManager
+         */
+        $themeManager = $services->get('Omeka\Site\ThemeManager');
+        $currentTheme = $themeManager->getTheme($site->theme());
+        if ($currentTheme->getState() === \Omeka\Site\Theme\Manager::STATE_ACTIVE) {
+            // Add the theme view templates to the path stack.
+            $services->get('ViewTemplatePathStack')->addPath($currentTheme->getPath('view'));
+            // Load theme view helpers on-demand.
+            $helpers = $currentTheme->getIni('helpers');
+            if (is_array($helpers)) {
+                foreach ($helpers as $helper) {
+                    $factory = function ($pluginManager) use ($site, $helper, $currentTheme) {
+                        require_once $currentTheme->getPath('helper', "$helper.php");
+                        $helperClass = sprintf('\OmekaTheme\Helper\%s', $helper);
+                        return new $helperClass;
+                    };
+                    $services->get('ViewHelperManager')->setFactory($helper, $factory);
+                }
+            }
+        }
+
+        // Set the runtime locale and translator language to the configured site
+        // locale.
+        $locale = $siteSettings->get('locale');
+        if ($locale) {
+            if (extension_loaded('intl')) {
+                \Locale::setDefault($locale);
+            }
+            $services->get('MvcTranslator')->getDelegatedTranslator()->setLocale($locale);
+        }
 
         $slug = $page->slug();
         $pageBodyClass = 'page site-page-' . preg_replace('([^a-zA-Z0-9\-])', '-', $slug);
