@@ -492,6 +492,8 @@ class Module extends AbstractModule
     {
         $services = $this->getServiceLocator();
         $api = $services->get('Omeka\ApiManager');
+
+        /** @var \Omeka\Api\Representation\SitePageRepresentation $page */
         $page = $api->read('site_pages', ['id' => $jsonLd['o:id']])->getContent();
         $site = $page->site();
 
@@ -506,6 +508,9 @@ class Module extends AbstractModule
         // TODO Add theme?
         $services->get('ControllerPluginManager')->get('currentSite')->setSite($site);
 
+        $slug = $page->slug();
+        $pageBodyClass = 'page site-page-' . preg_replace('([^a-zA-Z0-9\-])', '-', $slug);
+
         /** @see \Omeka\Controller\Site\PageController::showAction() */
         $viewHelpers = $services->get('ViewHelperManager');
         $viewHelpers->get('sitePagePagination')->setPage($page);
@@ -513,6 +518,7 @@ class Module extends AbstractModule
         $view = new ViewModel([
             'site' => $page->site(),
             'page' => $page,
+            'pageBodyClass' => $pageBodyClass,
             'displayNavigation' => false,
         ]);
 
